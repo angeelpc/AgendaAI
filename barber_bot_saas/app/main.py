@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Response, Query, Depends
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .database import init_db, get_db
+from .database import init_db, get_db, engine
 from .models import Barberia, Cita, Barbero
 from .service import handle_incoming
 from .panel import router as panel_router
@@ -18,8 +18,16 @@ def _startup():
 
 
 @app.get("/health")
-def health():
-    return {"ok": True, "modo_ia": settings.use_llm}
+def health(db: Session = Depends(get_db)):
+    backend = engine.url.get_backend_name()   # "sqlite" o "postgresql"
+    negocios = db.query(Barberia).count()
+    return {
+        "ok": True,
+        "modo_ia": settings.use_llm,
+        "db": backend,
+        "persistente": backend != "sqlite",   # sqlite en Railway = se borra en cada deploy
+        "negocios": negocios,
+    }
 
 
 # --- Verificacion del webhook (Meta hace un GET al configurarlo) ---
