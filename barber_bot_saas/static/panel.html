@@ -172,6 +172,10 @@
           <div><label>URL del logo</label><input id="c-logo" placeholder="https://…"></div>
           <div><label>Zona horaria</label><input id="c-tz" placeholder="America/Mexico_City"></div>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+          <div><label>WhatsApp phone_number_id <small style="color:var(--muted)">(de Meta Cloud API)</small></label><input id="c-waid" placeholder="000000000000000"></div>
+          <div><label>WhatsApp del dueño (escalaciones)</label><input id="c-admin" placeholder="5215555555555"></div>
+        </div>
         <div id="logo-preview" style="margin-top:10px"></div>
       </div>
 
@@ -382,6 +386,8 @@ async function loadConfig(){
   document.getElementById("c-emoji").value=c.emoji||"";
   document.getElementById("c-logo").value=c.logo_url||"";
   document.getElementById("c-tz").value=c.zona_horaria||"";
+  document.getElementById("c-waid").value=c.whatsapp_phone_id||"";
+  document.getElementById("c-admin").value=c.admin_phone||"";
   const m=c.mensajes||{};
   document.getElementById("m-saludo").value=m.saludo||"";
   document.getElementById("m-escalacion").value=m.escalacion||"";
@@ -395,6 +401,7 @@ async function saveConfig(){
     nombre:val("c-nombre"), termino_recurso:val("c-recurso"),
     termino_negocio:val("c-negocio"), emoji:val("c-emoji"),
     logo_url:val("c-logo"), zona_horaria:val("c-tz"),
+    whatsapp_phone_id:val("c-waid"), admin_phone:val("c-admin"),
     mensajes:{saludo:val("m-saludo"), escalacion:val("m-escalacion"),
       recordatorio:val("m-recordatorio"), cancelada:val("m-cancelada")}
   };
