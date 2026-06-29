@@ -4,8 +4,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from .config import settings
 
-connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args, future=True)
+# Railway/Heroku a veces entregan "postgres://"; SQLAlchemy 2.x exige "postgresql://".
+DB_URL = settings.DATABASE_URL
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
+engine = create_engine(DB_URL, connect_args=connect_args, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 

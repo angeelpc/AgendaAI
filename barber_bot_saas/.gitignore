@@ -1,0 +1,20 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Base de datos local (SQLite) — no subir
+*.db
+*.db-journal
+
+# Variables de entorno / secretos
+.env
+
+# SO / editor
+.DS_Store
+.idea/
+.vscode/
