@@ -7,7 +7,7 @@ import json
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from .agenda import AgendaService
 from .reminders import citas_por_recordar, enviar_recordatorios
 from .config import settings
 from .onboarding import crear_negocio, PRESETS
+from . import plans, billing
 
 router = APIRouter()
 STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -266,6 +267,29 @@ def editar_barbero(barbero_id: int, data: BarberoIn,
     return {"ok": True}
 
 
+@router.post("/api/barberos")
+def crear_barbero(data: BarberoIn, b: Barberia = Depends(current_barberia),
+                  db: Session = Depends(get_db)):
+    """Da de alta un profesional, respetando el limite del plan."""
+    actuales = db.query(Barbero).filter(Barbero.barberia_id == b.id).count()
+    if actuales >= plans.limite_recursos(b):
+        raise HTTPException(
+            409, f"Tu plan {b.plan} permite hasta {plans.limite_recursos(b)} "
+                 f"profesionales. Sube de plan para agregar más.")
+    siguiente = (db.query(Barbero).filter(Barbero.barberia_id == b.id).count()) + 1
+    r = Barbero(
+        barberia_id=b.id, numero=siguiente,
+        nombre=data.nombre or f"{plans.plan_de(b)['nombre']} {siguiente}",
+        work_start=data.work_start or "10:00",
+        work_end=data.work_end or "20:00",
+        days_off=data.days_off or "0",
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"ok": True, "id": r.id}
+
+
 # --------------------------- conversaciones escaladas ---------------------------
 
 @router.get("/api/conversaciones")
@@ -392,3 +416,71 @@ def update_config(data: ConfigIn, b: Barberia = Depends(current_barberia),
         b.config_mensajes = json.dumps(limpio, ensure_ascii=False)
     db.commit()
     return {"ok": True}
+
+
+# --------------------------- suscripcion / cobro ---------------------------
+
+@router.get("/api/billing/estado")
+def billing_estado(b: Barberia = Depends(current_barberia), db: Session = Depends(get_db)):
+    plan = plans.plan_de(b)
+    recursos = db.query(Barbero).filter(Barbero.barberia_id == b.id).count()
+    mes = datetime.now().strftime("%Y-%m")
+    usados = b.recordatorios_mes_count if b.recordatorios_mes_ref == mes else 0
+    return {
+        "plan": b.plan,
+        "plan_nombre": plan["nombre"],
+        "precio_mxn": plan["precio_mxn"],
+        "estado": b.estado_suscripcion,
+        "activa": plans.suscripcion_activa(b),
+        "dias_restantes": plans.dias_restantes(b),
+        "vigente_hasta": b.suscripcion_hasta.isoformat() if b.suscripcion_hasta else None,
+        "limites": {"recursos": plan["max_recursos"], "usuarios": plan["max_usuarios"],
+                    "recordatorios_mes": plan["recordatorios_mes"]},
+        "uso": {"recursos": recursos, "recordatorios_mes": usados},
+        "planes": plans.PLANES,
+    }
+
+
+class SuscribirIn(BaseModel):
+    plan: str
+    email: str = ""
+
+
+@router.post("/api/billing/suscribir")
+def billing_suscribir(data: SuscribirIn, b: Barberia = Depends(current_barberia),
+                      db: Session = Depends(get_db)):
+    try:
+        res = billing.crear_suscripcion(b, data.plan, data.email)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    # guardamos el plan elegido y el id de la suscripcion (pendiente hasta que MP confirme)
+    b.plan = data.plan.lower()
+    b.mp_preapproval_id = res.get("preapproval_id", "") or b.mp_preapproval_id
+    db.commit()
+    return res
+
+
+@router.post("/api/billing/simular_pago")
+def billing_simular_pago(b: Barberia = Depends(current_barberia),
+                         db: Session = Depends(get_db)):
+    """Solo para pruebas locales (sin Mercado Pago real): activa la suscripcion."""
+    if settings.use_mercadopago:
+        raise HTTPException(400, "Mercado Pago real está configurado; usa el flujo real")
+    billing.activar_suscripcion(db, b, plan_key=b.plan)
+    return {"ok": True, "estado": b.estado_suscripcion}
+
+
+@router.post("/webhook/mercadopago")
+async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
+    """Recibe notificaciones de Mercado Pago (suscripciones y pagos)."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    tipo = body.get("type") or body.get("topic") or request.query_params.get("type") or ""
+    data_id = (body.get("data", {}) or {}).get("id") or request.query_params.get("id") or ""
+    try:
+        billing.procesar_notificacion(db, tipo, str(data_id))
+    except Exception as e:  # nunca devolver error a MP para evitar reintentos en loop
+        print("Error webhook MP:", e)
+    return {"status": "received"}

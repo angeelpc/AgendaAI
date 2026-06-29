@@ -29,6 +29,16 @@ class Settings:
     # CAMBIALA en produccion via variable de entorno.
     PLATFORM_ADMIN_KEY = os.getenv("PLATFORM_ADMIN_KEY", "cambia-esta-clave-admin")
 
+    # --- Cobro de suscripciones (Mercado Pago) ---
+    MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    MERCADOPAGO_BASE_URL = "https://api.mercadopago.com"
+    # URL publica del backend (para back_url y notificaciones del webhook).
+    PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
+
+    @property
+    def use_mercadopago(self) -> bool:
+        return bool(self.MERCADOPAGO_ACCESS_TOKEN)
+
     @property
     def use_llm(self) -> bool:
         return bool(self.ANTHROPIC_API_KEY)

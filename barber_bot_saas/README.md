@@ -97,9 +97,30 @@ Para reducir no-shows, el sistema avisa a cada cliente antes de su cita
   (Programador de tareas de Windows, cron o el scheduler del hosting).
   El campo `recordatorio_enviado` evita reenvíos aunque corra varias veces al día.
 
+## Planes y cobro de suscripciones (Mercado Pago)
+
+Cada negocio tiene un plan (`starter` / `pro` / `premium`) con límites que la app
+hace cumplir: máximo de profesionales, recordatorios por mes y usuarios. El
+catálogo vive en `app/plans.py`.
+
+- **Estado y uso:** pestaña **Plan** del panel (`GET /api/billing/estado`).
+- **Suscribirse:** `POST /api/billing/suscribir` crea una suscripción (preapproval)
+  en Mercado Pago y devuelve el `init_point` para autorizar el cobro recurrente.
+- **Webhook:** `POST /webhook/mercadopago` recibe las notificaciones (suscripción y
+  pagos) y activa/renueva o vence la suscripción.
+- **Modo simulado:** sin `MERCADOPAGO_ACCESS_TOKEN`, el cobro no es real; el botón
+  *Simular pago* del panel (`POST /api/billing/simular_pago`) activa la suscripción
+  para probar todo el flujo en local.
+
+Los límites se aplican en: alta de negocio y de profesionales (máx. recursos) y en
+el envío de recordatorios (solo si la suscripción está activa y dentro del cupo
+mensual del plan).
+
 ## Estado
 
-Fases 1 y 2 (parcial): agenda, escalación y multi-tenant; panel web con gestión
-de servicios, alta manual de citas, no-shows y recordatorios. Todo probado con
-`pytest` (incluye `test_panel.py` y `test_reminders.py`). Falta para producción:
-sync con Google Calendar (opcional) y cobro de suscripciones (Fase 3).
+Fases 1, 2 y 3 operativas: agenda, escalación y multi-tenant; panel con servicios,
+citas manuales, no-shows, recordatorios y configuración; bot multi-giro; onboarding
+self-service; y planes con cobro por Mercado Pago (límites aplicados). Todo probado
+con `pytest` (41 pruebas, incluye `test_billing.py`). Pendiente para producción:
+desplegar en la nube, conectar WhatsApp Cloud API real y sync con Google Calendar
+(opcional).

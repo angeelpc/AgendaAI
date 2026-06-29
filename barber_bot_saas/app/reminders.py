@@ -15,7 +15,7 @@ from .config import settings
 from .database import SessionLocal, init_db
 from .models import Barberia, Barbero, Cita
 from .branding import Textos
-from . import whatsapp
+from . import whatsapp, plans
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
@@ -49,12 +49,31 @@ def citas_por_recordar(db, barberia_id: int, ahora: datetime, ventana_horas: int
 
 def enviar_recordatorios(db, barberia: Barberia, ahora: datetime | None = None,
                          ventana_horas: int | None = None, send: bool = True) -> int:
-    """Envia recordatorios pendientes de una barberia. Devuelve cuantos mando."""
+    """Envia recordatorios pendientes de una barberia. Devuelve cuantos mando.
+
+    Respeta el plan: no envia si la suscripcion no esta activa, y no excede el
+    cupo de recordatorios del mes.
+    """
     ahora = ahora or datetime.now()
     ventana = ventana_horas if ventana_horas is not None else settings.REMINDER_HOURS
 
+    # 1) suscripcion debe estar activa (en prueba o pagada vigente)
+    if not plans.suscripcion_activa(barberia, ahora):
+        return 0
+
+    # 2) cupo mensual del plan (se reinicia cada mes)
+    mes = ahora.strftime("%Y-%m")
+    if barberia.recordatorios_mes_ref != mes:
+        barberia.recordatorios_mes_ref = mes
+        barberia.recordatorios_mes_count = 0
+    restantes = plans.limite_recordatorios(barberia) - (barberia.recordatorios_mes_count or 0)
+    if restantes <= 0:
+        db.commit()
+        return 0
+
     citas = citas_por_recordar(db, barberia.id, ahora, ventana)
     if not citas:
+        db.commit()
         return 0
 
     barberos = {b.id: b.nombre for b in
@@ -63,11 +82,14 @@ def enviar_recordatorios(db, barberia: Barberia, ahora: datetime | None = None,
 
     enviados = 0
     for c in citas:
+        if enviados >= restantes:
+            break  # se agoto el cupo del plan este mes
         texto = _texto(c, barberos.get(c.barbero_id, t.recurso), t)
         if send:
             whatsapp.send_text(c.cliente_telefono, texto, barberia.whatsapp_phone_id)
         c.recordatorio_enviado = True
         enviados += 1
+    barberia.recordatorios_mes_count = (barberia.recordatorios_mes_count or 0) + enviados
     db.commit()
     return enviados
 

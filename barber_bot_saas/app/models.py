@@ -30,6 +30,13 @@ class Barberia(Base):
     emoji = Column(String, default="💈")
     config_mensajes = Column(Text, default="{}")       # overrides de textos (JSON)
 
+    # --- Suscripcion (Fase 3) ---
+    estado_suscripcion = Column(String, default="prueba")   # prueba | activa | vencida | cancelada
+    suscripcion_hasta = Column(DateTime, nullable=True)      # vigencia del cobro
+    mp_preapproval_id = Column(String, default="")          # id de la suscripcion en Mercado Pago
+    recordatorios_mes_ref = Column(String, default="")      # "YYYY-MM" del contador actual
+    recordatorios_mes_count = Column(Integer, default=0)     # recordatorios enviados este mes
+
     barberos = relationship("Barbero", back_populates="barberia")
     servicios = relationship("Servicio", back_populates="barberia")
 

@@ -83,6 +83,15 @@ def crear_negocio(db, datos: dict) -> dict:
     giro = (datos.get("giro") or "barberia").lower()
     p = preset_de(giro)
 
+    # Limite de recursos segun el plan elegido (o el plan por defecto)
+    from .plans import PLANES, DEFAULT_PLAN
+    plan_key = (datos.get("plan") or DEFAULT_PLAN).lower()
+    max_rec = PLANES.get(plan_key, PLANES[DEFAULT_PLAN])["max_recursos"]
+    if len(datos.get("recursos") or []) > max_rec:
+        raise ValueError(
+            f"El plan {plan_key} permite hasta {max_rec} profesionales; "
+            f"pediste {len(datos['recursos'])}.")
+
     api_key = datos.get("api_key") or secrets.token_hex(8)
     mensajes = datos.get("mensajes") or {}
 

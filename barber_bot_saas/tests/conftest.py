@@ -9,6 +9,7 @@ os.environ["ANTHROPIC_API_KEY"] = ""  # forzar motor de reglas
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.seed import seed  # noqa: E402
+from app.models import Cita, Conversacion  # noqa: E402
 
 
 @pytest.fixture()
@@ -16,5 +17,10 @@ def db():
     init_db()
     seed(reset=True)
     s = SessionLocal()
+    # aislamiento: seed no limpia citas ni conversaciones y el id de barberia
+    # vuelve a 1 en cada reseed, asi que las vaciamos para no arrastrar estado.
+    s.query(Cita).delete()
+    s.query(Conversacion).delete()
+    s.commit()
     yield s
     s.close()

@@ -45,6 +45,11 @@ def _migrate_sqlite():
             ("termino_negocio", "VARCHAR DEFAULT 'la barbería'"),
             ("emoji", "VARCHAR DEFAULT '💈'"),
             ("config_mensajes", "TEXT DEFAULT '{}'"),
+            ("estado_suscripcion", "VARCHAR DEFAULT 'prueba'"),
+            ("suscripcion_hasta", "DATETIME"),
+            ("mp_preapproval_id", "VARCHAR DEFAULT ''"),
+            ("recordatorios_mes_ref", "VARCHAR DEFAULT ''"),
+            ("recordatorios_mes_count", "INTEGER DEFAULT 0"),
         ],
     }
     with engine.begin() as conn:
