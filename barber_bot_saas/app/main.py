@@ -56,13 +56,20 @@ async def incoming(request: Request, db: Session = Depends(get_db)):
                     .filter(Barberia.whatsapp_phone_id == phone_id).first()
                 )
                 if not barberia:
+                    ids = [x[0] for x in db.query(Barberia.whatsapp_phone_id).all()]
+                    print(f"[webhook] SIN NEGOCIO para phone_id={phone_id!r}. "
+                          f"phone_ids registrados={ids}")
                     continue
+                print(f"[webhook] match negocio id={barberia.id} '{barberia.nombre}' "
+                      f"para phone_id={phone_id}")
                 for msg in value.get("messages", []):
                     if msg.get("type") != "text":
                         continue
                     telefono = msg["from"]
                     texto = msg["text"]["body"]
-                    handle_incoming(db, barberia, telefono, texto)
+                    reply = handle_incoming(db, barberia, telefono, texto)
+                    print(f"[webhook] respuesta='{(reply.text or '')[:60]}' "
+                          f"escalado={reply.escalate}")
     except Exception as e:  # nunca devolver error a Meta para evitar reintentos en loop
         print("Error procesando webhook:", e)
     return {"status": "received"}

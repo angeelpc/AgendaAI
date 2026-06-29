@@ -8,6 +8,8 @@ def send_text(to: str, body: str, phone_number_id: str | None = None) -> dict:
     devuelve un dict simulado (util para pruebas locales)."""
     pid = phone_number_id or settings.WHATSAPP_PHONE_NUMBER_ID
     if not settings.WHATSAPP_TOKEN or not pid:
+        print(f"[whatsapp] SIMULADO (falta token o phone_id) -> to={to} "
+              f"token={'si' if settings.WHATSAPP_TOKEN else 'NO'} pid={pid!r}")
         return {"simulado": True, "to": to, "body": body}
 
     url = f"{settings.GRAPH_API_URL}/{pid}/messages"
@@ -15,7 +17,13 @@ def send_text(to: str, body: str, phone_number_id: str | None = None) -> dict:
                "Content-Type": "application/json"}
     payload = {"messaging_product": "whatsapp", "to": to,
                "type": "text", "text": {"body": body}}
-    with httpx.Client(timeout=20) as c:
-        r = c.post(url, headers=headers, json=payload)
-        r.raise_for_status()
-        return r.json()
+    try:
+        with httpx.Client(timeout=20) as c:
+            r = c.post(url, headers=headers, json=payload)
+            r.raise_for_status()
+            print(f"[whatsapp] enviado a {to} (pid={pid})")
+            return r.json()
+    except httpx.HTTPStatusError as e:
+        print(f"[whatsapp] ERROR {e.response.status_code} al enviar a {to}: "
+              f"{e.response.text[:300]}")
+        raise
