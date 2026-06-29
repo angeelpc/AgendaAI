@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alta de negocio — Barber Bot</title>
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--line:#262b36;--txt:#e7eaf0;--muted:#9aa3b2;
+        --accent:#3b82f6;--accent2:#22c55e;--danger:#ef4444;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);background:var(--card);font-weight:700}
+  header span{color:var(--accent)}
+  main{max-width:760px;margin:0 auto;padding:22px}
+  h2{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:22px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0e1117;color:var(--txt);font-size:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;background:var(--accent);color:#fff}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);font-weight:500}
+  button.ok{background:var(--accent2)} button.sm{padding:6px 10px;font-size:12px}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .row input{flex:1}
+  .msg{margin-top:14px;font-size:14px;min-height:18px}
+  .ok-box{background:#11261a;border:1px solid #1e6b3f;border-radius:10px;padding:16px;margin-top:14px}
+  .ok-box code{background:#0e1117;padding:2px 6px;border-radius:5px;color:#7ee2a8}
+  small{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>💈 Barber<span>Bot</span> — Alta de negocio</header>
+<main>
+  <div class="card">
+    <label>Clave de administrador de la plataforma</label>
+    <input id="admin-key" type="password" placeholder="PLATFORM_ADMIN_KEY">
+    <small>La defines en el servidor. Solo tú (proveedor del SaaS) la conoces.</small>
+  </div>
+
+  <h2>Datos del negocio</h2>
+  <div class="card">
+    <div class="grid2">
+      <div><label>Nombre</label><input id="nombre" placeholder="Barbería El Filo"></div>
+      <div><label>Giro</label><select id="giro" onchange="aplicarPreset()"></select></div>
+    </div>
+    <div class="grid3">
+      <div><label>¿Cómo llamar al profesional?</label><input id="recurso" placeholder="barbero"></div>
+      <div><label>Nombre genérico del negocio</label><input id="negocio" placeholder="la barbería"></div>
+      <div><label>Emoji</label><input id="emoji" placeholder="💈"></div>
+    </div>
+    <div class="grid2">
+      <div><label>WhatsApp del dueño (escalaciones)</label><input id="admin-phone" placeholder="5215555555555"></div>
+      <div><label>phone_number_id de WhatsApp (opcional)</label><input id="phone-id" placeholder="opcional"></div>
+    </div>
+  </div>
+
+  <h2>Profesionales</h2>
+  <div class="card">
+    <div id="recursos"></div>
+    <button class="ghost sm" onclick="addRecurso()">+ Agregar profesional</button>
+  </div>
+
+  <h2>Servicios</h2>
+  <div class="card">
+    <div id="servicios"></div>
+    <button class="ghost sm" onclick="addServicio()">+ Agregar servicio</button>
+    <div><small>Si lo dejas vacío, se usan los servicios sugeridos del giro.</small></div>
+  </div>
+
+  <h2>Mensajes (opcional)</h2>
+  <div class="card">
+    <label>Saludo</label><input id="m-saludo" placeholder="(se usa uno por defecto si lo dejas vacío)">
+    <label>Recordatorio <small>variables: {nombre} {dia} {hora} {recurso} {negocio} {emoji}</small></label>
+    <input id="m-recordatorio" placeholder="(plantilla por defecto si lo dejas vacío)">
+  </div>
+
+  <button class="ok" style="width:100%;padding:13px" onclick="crear()">Crear negocio</button>
+  <div class="msg" id="msg"></div>
+</main>
+
+<script>
+let PRESETS={};
+async function init(){
+  const r=await fetch("/api/onboarding/presets"); PRESETS=await r.json();
+  const sel=document.getElementById("giro");
+  sel.innerHTML=Object.keys(PRESETS).filter(g=>g!=="default")
+    .map(g=>`<option value="${g}">${g}</option>`).join("");
+  aplicarPreset(); addRecurso();
+}
+function aplicarPreset(){
+  const g=document.getElementById("giro").value; const p=PRESETS[g]||PRESETS["default"];
+  document.getElementById("recurso").value=p.termino_recurso;
+  document.getElementById("negocio").value=p.termino_negocio;
+  document.getElementById("emoji").value=p.emoji;
+  // precargar servicios sugeridos
+  const cont=document.getElementById("servicios"); cont.innerHTML="";
+  (p.servicios||[]).forEach(s=>addServicio(s));
+}
+function addRecurso(){
+  const d=document.createElement("div"); d.className="row";
+  d.innerHTML=`<input placeholder="Nombre" class="r-nom">
+    <input placeholder="Entra 10:00" class="r-ws" style="max-width:110px">
+    <input placeholder="Sale 20:00" class="r-we" style="max-width:110px">
+    <button class="ghost sm" onclick="this.parentNode.remove()">✕</button>`;
+  document.getElementById("recursos").appendChild(d);
+}
+function addServicio(s){
+  const d=document.createElement("div"); d.className="row";
+  d.innerHTML=`<input placeholder="Servicio" class="s-nom" value="${s&&s.nombre?s.nombre:''}">
+    <input type="number" placeholder="min" class="s-dur" style="max-width:90px" value="${s&&s.duracion_min?s.duracion_min:''}">
+    <input type="number" placeholder="precio" class="s-pre" style="max-width:100px" value="${s&&s.precio?s.precio:''}">
+    <button class="ghost sm" onclick="this.parentNode.remove()">✕</button>`;
+  document.getElementById("servicios").appendChild(d);
+}
+function collect(sel,map){return [...document.querySelectorAll(sel)].map(map).filter(Boolean);}
+async function crear(){
+  const msg=document.getElementById("msg"); msg.textContent="Creando…"; msg.style.color="var(--muted)";
+  const recursos=collect("#recursos .row",r=>{
+    const nom=r.querySelector(".r-nom").value.trim(); if(!nom) return null;
+    return {nombre:nom, work_start:r.querySelector(".r-ws").value.trim()||"10:00",
+            work_end:r.querySelector(".r-we").value.trim()||"20:00"};
+  });
+  const servicios=collect("#servicios .row",r=>{
+    const nom=r.querySelector(".s-nom").value.trim(); if(!nom) return null;
+    return {nombre:nom, duracion_min:+r.querySelector(".s-dur").value||45,
+            precio:+r.querySelector(".s-pre").value||0};
+  });
+  const mensajes={};
+  const sal=document.getElementById("m-saludo").value.trim(); if(sal) mensajes.saludo=sal;
+  const rec=document.getElementById("m-recordatorio").value.trim(); if(rec) mensajes.recordatorio=rec;
+  const datos={
+    nombre:document.getElementById("nombre").value.trim(),
+    giro:document.getElementById("giro").value,
+    termino_recurso:document.getElementById("recurso").value.trim(),
+    termino_negocio:document.getElementById("negocio").value.trim(),
+    emoji:document.getElementById("emoji").value.trim(),
+    admin_phone:document.getElementById("admin-phone").value.trim(),
+    whatsapp_phone_id:document.getElementById("phone-id").value.trim()||null,
+    recursos, servicios, mensajes
+  };
+  const r=await fetch("/api/negocios",{method:"POST",
+    headers:{"Content-Type":"application/json","X-Admin-Key":document.getElementById("admin-key").value},
+    body:JSON.stringify(datos)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok){msg.style.color="var(--danger)";msg.textContent=data.detail||"No se pudo crear.";return;}
+  msg.innerHTML=`<div class="ok-box">✅ <b>${data.nombre}</b> creado.<br><br>
+    Entra al panel con:<br>ID = <code>${data.id}</code> &nbsp; Clave = <code>${data.api_key}</code><br><br>
+    <a href="/panel">Ir al panel →</a></div>`;
+}
+init();
+</script>
+</body>
+</html>

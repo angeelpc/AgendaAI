@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel — Barber Bot</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e7eaf0;
+    --muted:#9aa3b2; --accent:#3b82f6; --accent2:#22c55e; --danger:#ef4444; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  a{color:var(--accent)}
+  .hidden{display:none!important}
+  /* Login */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:32px;width:340px}
+  .login-card h1{font-size:20px;margin:0 0 4px}
+  .login-card p{color:var(--muted);margin:0 0 20px;font-size:13px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+  input,select{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0e1117;color:var(--txt);font-size:14px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;background:var(--accent);color:#fff}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);font-weight:500}
+  button.ok{background:var(--accent2)} button.bad{background:var(--danger)} button.warn{background:var(--warn);color:#1a1a1a}
+  button.sm{padding:6px 10px;font-size:12px}
+  .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+  /* App */
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--card)}
+  header .brand{font-weight:700} header .brand span{color:var(--accent)}
+  nav{display:flex;gap:6px;padding:14px 22px 0}
+  nav button{background:transparent;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px}
+  nav button.active{color:var(--txt);border-bottom-color:var(--accent)}
+  main{padding:22px;max-width:980px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .stat .n{font-size:30px;font-weight:700} .stat .l{color:var(--muted);font-size:12px;margin-top:4px}
+  table{width:100%;border-collapse:collapse;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:11px 14px;font-size:14px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  tr:last-child td{border-bottom:none}
+  .pill{font-size:11px;padding:3px 8px;border-radius:20px;background:#243; color:#7ee2a8}
+  .row-actions{display:flex;gap:6px}
+  .empty{color:var(--muted);padding:24px;text-align:center}
+  .save-row{display:flex;gap:6px;align-items:center}
+  .save-row input{width:90px} .save-row input.name{width:120px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login">
+  <div class="login-card">
+    <h1>💈 Barber Bot</h1>
+    <p>Panel de tu barbería</p>
+    <label>ID de barbería</label>
+    <input id="in-id" type="number" value="1">
+    <label>Clave de acceso</label>
+    <input id="in-key" type="password" placeholder="api key" value="demo-key-filo">
+    <div style="margin-top:18px"><button onclick="login()" style="width:100%">Entrar</button></div>
+    <div class="err" id="login-err"></div>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">💈 Barber<span>Bot</span> — <span id="bnombre"></span></div>
+    <button class="ghost sm" onclick="logout()">Salir</button>
+  </header>
+  <nav>
+    <button data-tab="dash" class="active" onclick="tab('dash')">Resumen</button>
+    <button data-tab="citas" onclick="tab('citas')">Citas</button>
+    <button data-tab="servicios" onclick="tab('servicios')">Servicios</button>
+    <button data-tab="barberos" onclick="tab('barberos')">Barberos</button>
+    <button data-tab="chats" onclick="tab('chats')">Chats escalados</button>
+    <button data-tab="config" onclick="tab('config')">Configuración</button>
+  </nav>
+  <main>
+    <section id="tab-dash">
+      <div class="cards">
+        <div class="stat"><div class="n" id="s-hoy">–</div><div class="l">Citas hoy</div></div>
+        <div class="stat"><div class="n" id="s-sem">–</div><div class="l">Citas (7 días)</div></div>
+        <div class="stat"><div class="n" id="s-esc">–</div><div class="l">Chats con persona</div></div>
+        <div class="stat"><div class="n" id="s-bar">–</div><div class="l">Barberos</div></div>
+        <div class="stat"><div class="n" id="s-ns">–</div><div class="l">No-shows (30 días)</div></div>
+        <div class="stat"><div class="n" id="s-rec">–</div><div class="l">Recordatorios por enviar</div>
+          <button class="ok sm" style="margin-top:10px" onclick="enviarRecordatorios()">Enviar ahora</button>
+        </div>
+      </div>
+      <div id="rec-msg" style="color:var(--accent2);font-size:13px;margin-top:8px;min-height:16px"></div>
+    </section>
+
+    <section id="tab-citas" class="hidden">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+        <button class="sm" onclick="toggleNueva()">+ Cita manual</button>
+      </div>
+      <div id="nueva-cita" class="hidden" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div><label>Barbero</label><select id="nc-bar"></select></div>
+          <div><label>Servicio</label><select id="nc-serv"></select></div>
+          <div><label>Fecha y hora</label><input id="nc-dt" type="datetime-local"></div>
+          <div><label>Cliente</label><input id="nc-nom" placeholder="Nombre"></div>
+          <div><label>Teléfono</label><input id="nc-tel" placeholder="opcional"></div>
+          <div style="display:flex;align-items:flex-end"><button class="ok" style="width:100%" onclick="crearCita()">Agendar</button></div>
+        </div>
+        <div class="err" id="nc-err"></div>
+      </div>
+      <table><thead><tr><th>Cliente</th><th>Barbero</th><th>Fecha y hora</th><th>Servicio</th><th></th></tr></thead>
+      <tbody id="tb-citas"></tbody></table>
+      <div class="empty hidden" id="citas-empty">No hay citas próximas.</div>
+    </section>
+
+    <section id="tab-servicios" class="hidden">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div class="save-row" style="flex-wrap:wrap">
+          <input class="name" id="ns-nom" placeholder="Nombre">
+          <input id="ns-dur" type="number" placeholder="min" style="width:80px">
+          <input id="ns-pre" type="number" placeholder="precio $" style="width:90px">
+          <button class="ok sm" onclick="crearServicio()">Agregar servicio</button>
+        </div>
+      </div>
+      <table><thead><tr><th>Servicio</th><th>Duración (min)</th><th>Precio $</th><th></th></tr></thead>
+      <tbody id="tb-servicios"></tbody></table>
+      <div class="empty hidden" id="serv-empty">Aún no hay servicios. Agrega el primero arriba.</div>
+    </section>
+
+    <section id="tab-barberos" class="hidden">
+      <table><thead><tr><th>#</th><th>Nombre</th><th>Entrada</th><th>Salida</th><th>Días libres (0=Lun)</th><th></th></tr></thead>
+      <tbody id="tb-barberos"></tbody></table>
+    </section>
+
+    <section id="tab-chats" class="hidden">
+      <table><thead><tr><th>Teléfono</th><th>Estado</th><th>Actualizado</th><th></th></tr></thead>
+      <tbody id="tb-chats"></tbody></table>
+      <div class="empty hidden" id="chats-empty">Ningún chat necesita atención humana. 🎉</div>
+    </section>
+
+    <section id="tab-config" class="hidden">
+      <div class="stat" style="margin-bottom:14px">
+        <label>Nombre del negocio</label><input id="c-nombre">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
+          <div><label>¿Cómo llamar al profesional?</label><input id="c-recurso" placeholder="barbero / doctor…"></div>
+          <div><label>Nombre genérico del negocio</label><input id="c-negocio" placeholder="la barbería / la clínica"></div>
+          <div><label>Emoji</label><input id="c-emoji"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px">
+          <div><label>URL del logo</label><input id="c-logo" placeholder="https://…"></div>
+          <div><label>Zona horaria</label><input id="c-tz" placeholder="America/Mexico_City"></div>
+        </div>
+        <div id="logo-preview" style="margin-top:10px"></div>
+      </div>
+
+      <div class="stat">
+        <div class="l" style="margin-bottom:8px">Mensajes personalizados (vacío = usa el predeterminado)</div>
+        <label>Saludo</label><input id="m-saludo">
+        <label>Escalación a humano</label><input id="m-escalacion">
+        <label>Recordatorio <small style="color:var(--muted)">variables: {nombre} {dia} {hora} {recurso} {negocio} {emoji}</small></label>
+        <input id="m-recordatorio">
+        <label>Mensaje al cancelar</label><input id="m-cancelada">
+      </div>
+
+      <div style="margin-top:14px"><button class="ok" onclick="saveConfig()">Guardar configuración</button>
+        <span id="config-msg" style="margin-left:10px;color:var(--accent2);font-size:13px"></span></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const LS = "barberbot_auth";
+let auth = JSON.parse(localStorage.getItem(LS) || "null");
+
+function headers(){return {"Content-Type":"application/json","X-Barberia-Id":auth.id,"X-Api-Key":auth.key};}
+async function api(path, opts={}){
+  const r = await fetch(path, {headers:headers(), ...opts});
+  if(r.status===401){logout();throw new Error("no auth");}
+  return r.json();
+}
+
+async function login(){
+  const id = +document.getElementById("in-id").value;
+  const key = document.getElementById("in-key").value;
+  const err = document.getElementById("login-err"); err.textContent="";
+  try{
+    const r = await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({barberia_id:id, api_key:key})});
+    if(!r.ok){err.textContent="Credenciales inválidas"; return;}
+    const data = await r.json();
+    auth = {id, key, nombre:data.nombre};
+    localStorage.setItem(LS, JSON.stringify(auth));
+    enterApp();
+  }catch(e){err.textContent="Error de conexión";}
+}
+function logout(){localStorage.removeItem(LS);auth=null;location.reload();}
+
+function enterApp(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("bnombre").textContent = auth.nombre || "";
+  tab("dash");
+}
+
+function tab(name){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+  ["dash","citas","servicios","barberos","chats","config"].forEach(t=>
+    document.getElementById("tab-"+t).classList.toggle("hidden", t!==name));
+  if(name==="dash") loadDash();
+  if(name==="citas") loadCitas();
+  if(name==="servicios") loadServicios();
+  if(name==="barberos") loadBarberos();
+  if(name==="chats") loadChats();
+  if(name==="config") loadConfig();
+}
+
+function fmt(iso){
+  const d=new Date(iso);
+  const dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  return `${dias[d.getDay()]} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
+async function loadDash(){
+  const d = await api("/api/dashboard");
+  s_hoy.textContent=d.citas_hoy; s_sem.textContent=d.citas_semana;
+  s_esc.textContent=d.chats_escalados; s_bar.textContent=d.barberos;
+  document.getElementById("s-ns").textContent = d.no_shows_30d ?? 0;
+  document.getElementById("s-rec").textContent = d.recordatorios_pendientes ?? 0;
+}
+
+async function enviarRecordatorios(){
+  const msg=document.getElementById("rec-msg"); msg.textContent="Enviando…";
+  const r=await api("/api/recordatorios/enviar",{method:"POST"});
+  msg.textContent = r.enviados>0 ? `✅ ${r.enviados} recordatorio(s) enviado(s).`
+                                 : "No había recordatorios pendientes.";
+  loadDash();
+}
+
+async function loadCitas(){
+  const rows = await api("/api/citas");
+  const tb=document.getElementById("tb-citas"); tb.innerHTML="";
+  document.getElementById("citas-empty").classList.toggle("hidden", rows.length>0);
+  rows.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${c.cliente||"—"}<br><small style="color:var(--muted)">${c.telefono||""}</small></td>
+      <td>${c.barbero}</td><td>${fmt(c.inicio)}</td><td>${c.servicio||""}</td>
+      <td class="row-actions">
+        <button class="ok sm" onclick="completar(${c.id})">Completar</button>
+        <button class="warn sm" onclick="noShow(${c.id})">No-show</button>
+        <button class="bad sm" onclick="cancelar(${c.id})">Cancelar</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+async function cancelar(id){await api(`/api/citas/${id}/cancelar`,{method:"POST"});loadCitas();}
+async function completar(id){await api(`/api/citas/${id}/completar`,{method:"POST"});loadCitas();}
+async function noShow(id){await api(`/api/citas/${id}/no_show`,{method:"POST"});loadCitas();}
+
+// --- cita manual ---
+async function toggleNueva(){
+  const box=document.getElementById("nueva-cita");
+  const show=box.classList.contains("hidden");
+  box.classList.toggle("hidden");
+  if(show){
+    const bars=await api("/api/barberos");
+    document.getElementById("nc-bar").innerHTML=bars.map(b=>`<option value="${b.id}">${b.numero}. ${b.nombre}</option>`).join("");
+    const servs=await api("/api/servicios");
+    document.getElementById("nc-serv").innerHTML=servs.map(s=>`<option value="${s.nombre}">${s.nombre} (${s.duracion_min}min)</option>`).join("");
+  }
+}
+async function crearCita(){
+  const err=document.getElementById("nc-err"); err.textContent="";
+  const body={barbero_id:+val("nc-bar"), servicio:val("nc-serv"),
+    inicio:val("nc-dt"), cliente_nombre:val("nc-nom"), cliente_telefono:val("nc-tel")};
+  if(!body.inicio||!body.cliente_nombre){err.textContent="Falta fecha/hora o nombre.";return;}
+  const r=await fetch("/api/citas",{method:"POST",headers:headers(),body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));err.textContent=e.detail||"No se pudo agendar.";return;}
+  document.getElementById("nueva-cita").classList.add("hidden");
+  document.getElementById("nc-nom").value=""; document.getElementById("nc-tel").value="";
+  loadCitas();
+}
+
+async function loadBarberos(){
+  const rows = await api("/api/barberos");
+  const tb=document.getElementById("tb-barberos"); tb.innerHTML="";
+  rows.forEach(b=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${b.numero}</td>
+      <td><input class="name" id="n-${b.id}" value="${b.nombre}"></td>
+      <td><input id="ws-${b.id}" value="${b.work_start}"></td>
+      <td><input id="we-${b.id}" value="${b.work_end}"></td>
+      <td><input id="do-${b.id}" value="${b.days_off}"></td>
+      <td><button class="sm" onclick="saveBarbero(${b.id})">Guardar</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+async function saveBarbero(id){
+  const body={nombre:val(`n-${id}`),work_start:val(`ws-${id}`),work_end:val(`we-${id}`),days_off:val(`do-${id}`)};
+  await api(`/api/barberos/${id}`,{method:"PUT",body:JSON.stringify(body)});
+  const btn=event.target; btn.textContent="✓"; setTimeout(()=>btn.textContent="Guardar",900);
+}
+function val(id){return document.getElementById(id).value;}
+
+async function loadChats(){
+  const rows = await api("/api/conversaciones?estado=humano");
+  const tb=document.getElementById("tb-chats"); tb.innerHTML="";
+  document.getElementById("chats-empty").classList.toggle("hidden", rows.length>0);
+  rows.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${c.telefono}</td><td><span class="pill" style="background:#3a2a14;color:#f5c97a">requiere persona</span></td>
+      <td>${fmt(c.actualizada)}</td>
+      <td><button class="warn sm" onclick="devolver(${c.id})">Devolver al bot</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+async function devolver(id){await api(`/api/conversaciones/${id}/devolver_bot`,{method:"POST"});loadChats();}
+
+// --- configuración del negocio ---
+async function loadConfig(){
+  const c = await api("/api/config");
+  document.getElementById("c-nombre").value=c.nombre||"";
+  document.getElementById("c-recurso").value=c.termino_recurso||"";
+  document.getElementById("c-negocio").value=c.termino_negocio||"";
+  document.getElementById("c-emoji").value=c.emoji||"";
+  document.getElementById("c-logo").value=c.logo_url||"";
+  document.getElementById("c-tz").value=c.zona_horaria||"";
+  const m=c.mensajes||{};
+  document.getElementById("m-saludo").value=m.saludo||"";
+  document.getElementById("m-escalacion").value=m.escalacion||"";
+  document.getElementById("m-recordatorio").value=m.recordatorio||"";
+  document.getElementById("m-cancelada").value=m.cancelada||"";
+  const prev=document.getElementById("logo-preview");
+  prev.innerHTML=c.logo_url?`<img src="${c.logo_url}" alt="logo" style="max-height:60px;border-radius:8px">`:"";
+}
+async function saveConfig(){
+  const body={
+    nombre:val("c-nombre"), termino_recurso:val("c-recurso"),
+    termino_negocio:val("c-negocio"), emoji:val("c-emoji"),
+    logo_url:val("c-logo"), zona_horaria:val("c-tz"),
+    mensajes:{saludo:val("m-saludo"), escalacion:val("m-escalacion"),
+      recordatorio:val("m-recordatorio"), cancelada:val("m-cancelada")}
+  };
+  await api("/api/config",{method:"PUT",body:JSON.stringify(body)});
+  const msg=document.getElementById("config-msg"); msg.textContent="✅ Guardado";
+  setTimeout(()=>msg.textContent="",1500);
+  loadConfig();
+}
+
+// --- servicios ---
+async function loadServicios(){
+  const rows = await api("/api/servicios");
+  const tb=document.getElementById("tb-servicios"); tb.innerHTML="";
+  document.getElementById("serv-empty").classList.toggle("hidden", rows.length>0);
+  rows.forEach(s=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input class="name" id="sn-${s.id}" value="${s.nombre}"></td>
+      <td><input id="sd-${s.id}" type="number" value="${s.duracion_min}" style="width:80px"></td>
+      <td><input id="sp-${s.id}" type="number" value="${s.precio}" style="width:90px"></td>
+      <td class="row-actions">
+        <button class="sm" onclick="saveServicio(${s.id})">Guardar</button>
+        <button class="bad sm" onclick="delServicio(${s.id})">Borrar</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+async function crearServicio(){
+  const body={nombre:val("ns-nom"), duracion_min:+val("ns-dur")||45, precio:+val("ns-pre")||0};
+  if(!body.nombre){return;}
+  await api("/api/servicios",{method:"POST",body:JSON.stringify(body)});
+  document.getElementById("ns-nom").value=""; document.getElementById("ns-dur").value=""; document.getElementById("ns-pre").value="";
+  loadServicios();
+}
+async function saveServicio(id){
+  const body={nombre:val(`sn-${id}`), duracion_min:+val(`sd-${id}`), precio:+val(`sp-${id}`)};
+  await api(`/api/servicios/${id}`,{method:"PUT",body:JSON.stringify(body)});
+  const btn=event.target; btn.textContent="✓"; setTimeout(()=>btn.textContent="Guardar",900);
+}
+async function delServicio(id){
+  await api(`/api/servicios/${id}`,{method:"DELETE"});
+  loadServicios();
+}
+
+// arranque
+if(auth) enterApp();
+</script>
+</body>
+</html>
