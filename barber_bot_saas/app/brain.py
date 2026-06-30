@@ -42,9 +42,18 @@ def _fmt_hora(dt: datetime) -> str:
     return dt.strftime("%H:%M")
 
 
+DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
 def _fmt_fecha(d: date) -> str:
-    dias = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-    return f"{dias[d.weekday()]} {d.day:02d}/{d.month:02d}"
+    return f"{DIAS_SEMANA[d.weekday()]} {d.day:02d}/{d.month:02d}"
+
+
+def _dias_que_atiende(barbero) -> str:
+    """Texto con los dias que trabaja un recurso, ej. 'martes, miércoles, sábado'."""
+    libres = barbero.dias_libres()
+    dias = [DIAS_SEMANA[i] for i in range(7) if i not in libres]
+    return ", ".join(dias) if dias else "ningún día configurado"
 
 
 # ----------------------------- motor de reglas -----------------------------
@@ -150,12 +159,23 @@ class RuleBrain:
 
         if not ctx.get("fecha"):
             ctx["stage"] = "need_day"
-            return self._save(conv, ctx, Reply(text=self.t.pedir_dia()))
+            b = self._barbero(barberos, ctx["barbero_numero"])
+            msg = f"{b.nombre} atiende: {_dias_que_atiende(b)}.\n{self.t.pedir_dia()}"
+            return self._save(conv, ctx, Reply(text=msg))
+
+        # Validar que el dia elegido sea un dia que atiende
+        b = self._barbero(barberos, ctx["barbero_numero"])
+        dia_sel = date.fromisoformat(ctx["fecha"])
+        if dia_sel.weekday() in b.dias_libres():
+            ctx.pop("fecha", None)
+            ctx.pop("periodo", None)
+            return self._save(conv, ctx, Reply(
+                text=f"{b.nombre} no atiende los {DIAS_SEMANA[dia_sel.weekday()]}. "
+                     f"Atiende: {_dias_que_atiende(b)}. ¿Qué día te queda?"))
 
         # tenemos recurso + fecha -> ofrecer horarios
         slots = self._slots(agenda, ctx, barberos, dur, ahora)
         if not slots:
-            b = self._barbero(barberos, ctx["barbero_numero"])
             ctx.pop("fecha", None)
             ctx.pop("periodo", None)
             return self._save(conv, ctx, Reply(text=self.t.sin_slots(b.nombre)))
