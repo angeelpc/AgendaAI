@@ -15,9 +15,13 @@ class Settings:
     WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "verify-me")
     GRAPH_API_URL = "https://graph.facebook.com/v20.0"
 
-    # Cerebro IA
+    # Cerebro IA — Anthropic (Claude)
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
+
+    # Cerebro IA — Google (Gemini). Tiene capa gratuita.
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
     # Base de datos
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///barber_bot.db")
@@ -41,7 +45,11 @@ class Settings:
 
     @property
     def use_llm(self) -> bool:
-        return bool(self.ANTHROPIC_API_KEY)
+        return bool(self.ANTHROPIC_API_KEY or self.GEMINI_API_KEY)
+
+    @property
+    def use_gemini(self) -> bool:
+        return bool(self.GEMINI_API_KEY)
 
 
 settings = Settings()

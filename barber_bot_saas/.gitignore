@@ -13,6 +13,8 @@ __pycache__/
 
 # Variables de entorno / secretos
 .env
+cerebro.ps1
+*.local.ps1
 
 # SO / editor
 .DS_Store

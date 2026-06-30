@@ -353,35 +353,7 @@ class LLMBrain:
         dur = servicio.duracion_min if servicio else 45
 
         def run_tool(name, args):
-            if name == "consultar_disponibilidad":
-                b = agenda.barbero_por_numero(args["barbero_numero"])
-                if not b:
-                    return {"error": "barbero no existe"}
-                d = date.fromisoformat(args["fecha"])
-                slots = agenda.get_availability(b, d, dur, ahora)
-                return {"slots": [s.isoformat() for s in slots[:8]]}
-            if name == "agendar_cita":
-                b = agenda.barbero_por_numero(args["barbero_numero"])
-                inicio = datetime.fromisoformat(f"{args['fecha']}T{args['hora']}")
-                try:
-                    cita = agenda.book(b, inicio, dur, args["cliente_nombre"],
-                                       conv.telefono, servicio.nombre if servicio else "Corte")
-                    return {"ok": True, "cita_id": cita.id}
-                except ValueError as e:
-                    return {"ok": False, "error": str(e)}
-            if name == "cancelar_cita":
-                ult = (db.query(Cita)
-                       .filter(Cita.cliente_telefono == conv.telefono,
-                               Cita.estado == "agendada")
-                       .order_by(Cita.inicio.desc()).first())
-                if ult:
-                    agenda.cancel(ult.id)
-                    return {"ok": True}
-                return {"ok": False, "error": "sin cita activa"}
-            if name == "escalar_a_humano":
-                conv.estado = "humano"
-                return {"escalado": True}
-            return {"error": "tool desconocida"}
+            return _ejecutar_tool(db, agenda, conv, servicio, dur, ahora, name, args)
 
         t = Textos(barberia)
         recurso = t.recurso
@@ -419,5 +391,108 @@ class LLMBrain:
         return Reply(text="¿Podrías repetirme eso, por favor?", escalate=escalate)
 
 
+def _ejecutar_tool(db, agenda, conv, servicio, dur, ahora, name, args):
+    """Ejecuta una herramienta del cerebro IA. Compartido por Claude y Gemini."""
+    if name == "consultar_disponibilidad":
+        b = agenda.barbero_por_numero(int(args["barbero_numero"]))
+        if not b:
+            return {"error": "recurso no existe"}
+        d = date.fromisoformat(args["fecha"])
+        slots = agenda.get_availability(b, d, dur, ahora)
+        return {"slots": [s.isoformat() for s in slots[:8]]}
+    if name == "agendar_cita":
+        b = agenda.barbero_por_numero(int(args["barbero_numero"]))
+        if not b:
+            return {"ok": False, "error": "recurso no existe"}
+        inicio = datetime.fromisoformat(f"{args['fecha']}T{args['hora']}")
+        try:
+            cita = agenda.book(b, inicio, dur, args["cliente_nombre"],
+                               conv.telefono, servicio.nombre if servicio else "Cita")
+            return {"ok": True, "cita_id": cita.id}
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+    if name == "cancelar_cita":
+        ult = (db.query(Cita)
+               .filter(Cita.cliente_telefono == conv.telefono,
+                       Cita.estado == "agendada")
+               .order_by(Cita.inicio.desc()).first())
+        if ult:
+            agenda.cancel(ult.id)
+            return {"ok": True}
+        return {"ok": False, "error": "sin cita activa"}
+    if name == "escalar_a_humano":
+        conv.estado = "humano"
+        return {"escalado": True}
+    return {"error": "tool desconocida"}
+
+
+# ----------------------------- cerebro con IA (Google Gemini) -----------------------------
+
+class GeminiBrain:
+    """Usa Google Gemini (capa gratuita) con function-calling. Mismas tools y
+    misma persona que LLMBrain. Mantiene el historial como turnos de texto."""
+
+    def respond(self, db, barberia, conv, message, ahora=None):
+        from google import genai
+        from google.genai import types
+        ahora = ahora or datetime.now()
+        agenda = AgendaService(db, barberia.id)
+        _, barberos = _barbero_nombres(db, barberia.id)
+        servicio = _default_service(db, barberia.id)
+        dur = servicio.duracion_min if servicio else 45
+        t = Textos(barberia)
+        sys = _persona_prompt(barberia, barberos, servicio, dur, ahora, t)
+
+        # Declaracion de herramientas en formato Gemini
+        decls = [{"name": tl["name"], "description": tl["description"],
+                  "parameters": tl["input_schema"]} for tl in LLMBrain.TOOLS]
+        tools = [types.Tool(function_declarations=decls)]
+        config = types.GenerateContentConfig(system_instruction=sys, tools=tools)
+
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+        # Historial de turnos de texto (serializable entre mensajes)
+        hist = json.loads(conv.contexto or "[]")
+        if not isinstance(hist, list):
+            hist = []
+        contents = [types.Content(role=h["role"],
+                                  parts=[types.Part(text=h["text"])]) for h in hist]
+        contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
+
+        escalate = False
+        booked = None
+        texto = ""
+        for _ in range(6):
+            resp = client.models.generate_content(
+                model=settings.GEMINI_MODEL, contents=contents, config=config)
+            fcalls = getattr(resp, "function_calls", None) or []
+            if not fcalls:
+                texto = resp.text or ""
+                break
+            contents.append(resp.candidates[0].content)
+            fresp_parts = []
+            for fc in fcalls:
+                args = dict(fc.args or {})
+                out = _ejecutar_tool(db, agenda, conv, servicio, dur, ahora, fc.name, args)
+                if fc.name == "escalar_a_humano":
+                    escalate = True
+                if fc.name == "agendar_cita" and out.get("ok"):
+                    booked = out.get("cita_id")
+                fresp_parts.append(types.Part.from_function_response(
+                    name=fc.name, response={"result": out}))
+            contents.append(types.Content(role="user", parts=fresp_parts))
+
+        # Guardar solo los turnos de texto (no los internos de tools)
+        hist.append({"role": "user", "text": message})
+        hist.append({"role": "model", "text": texto})
+        conv.contexto = json.dumps(hist[-20:])  # ultimas ~10 idas y vueltas
+        return Reply(text=texto or "¿Podrías repetirme eso, por favor?",
+                     escalate=escalate, booked_cita_id=booked)
+
+
 def get_brain():
-    return LLMBrain() if settings.use_llm else RuleBrain()
+    if settings.use_gemini:
+        return GeminiBrain()
+    if settings.ANTHROPIC_API_KEY:
+        return LLMBrain()
+    return RuleBrain()
