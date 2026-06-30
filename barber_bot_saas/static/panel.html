@@ -142,8 +142,9 @@
         </div>
         <div id="nb-msg" style="margin-top:8px;font-size:13px;color:var(--danger);min-height:16px"></div>
       </div>
-      <table><thead><tr><th>#</th><th>Nombre</th><th>Entrada</th><th>Salida</th><th>Días que trabaja</th><th></th></tr></thead>
+      <table><thead><tr><th>#</th><th>Nombre</th><th>Entrada</th><th>Salida</th><th>Horario partido <small style="color:var(--muted)">(opcional)</small></th><th>Días que trabaja</th><th></th></tr></thead>
       <tbody id="tb-barberos"></tbody></table>
+      <div style="color:var(--muted);font-size:12px;margin-top:8px">Para horario partido, usa "Horario partido", ej. <b>10:00-14:00,16:00-20:00</b>. Si lo dejas vacío, se usa Entrada–Salida.</div>
     </section>
 
     <section id="tab-chats" class="hidden">
@@ -374,15 +375,17 @@ async function loadBarberos(){
     const tr=document.createElement("tr");
     tr.innerHTML=`<td>${b.numero}</td>
       <td><input class="name" id="n-${b.id}" value="${b.nombre}"></td>
-      <td><input id="ws-${b.id}" value="${b.work_start}" style="width:80px"></td>
-      <td><input id="we-${b.id}" value="${b.work_end}" style="width:80px"></td>
+      <td><input id="ws-${b.id}" value="${b.work_start}" style="width:75px"></td>
+      <td><input id="we-${b.id}" value="${b.work_end}" style="width:75px"></td>
+      <td><input id="bl-${b.id}" value="${b.bloques||''}" placeholder="10:00-14:00,16:00-20:00" style="width:185px"></td>
       <td>${checksDias(b.id, b.days_off)}</td>
       <td><button class="sm" onclick="saveBarbero(${b.id})">Guardar</button></td>`;
     tb.appendChild(tr);
   });
 }
 async function saveBarbero(id){
-  const body={nombre:val(`n-${id}`),work_start:val(`ws-${id}`),work_end:val(`we-${id}`),days_off:diasOff(id)};
+  const body={nombre:val(`n-${id}`),work_start:val(`ws-${id}`),work_end:val(`we-${id}`),
+    bloques:val(`bl-${id}`),days_off:diasOff(id)};
   await api(`/api/barberos/${id}`,{method:"PUT",body:JSON.stringify(body)});
   const btn=event.target; btn.textContent="✓"; setTimeout(()=>btn.textContent="Guardar",900);
 }

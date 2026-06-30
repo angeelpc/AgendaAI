@@ -3,8 +3,9 @@ Comparte la logica entre el webhook real y el demo offline."""
 import json
 from datetime import datetime
 
-from .models import Barberia, Conversacion, Cliente, Mensaje, Cita
+from .models import Barberia, Conversacion, Cliente, Mensaje, Cita, Barbero
 from .brain import get_brain, Reply
+from .config import settings
 from . import whatsapp
 
 
@@ -70,11 +71,19 @@ def handle_incoming(db, barberia: Barberia, telefono: str, message: str,
     if reply.text:
         log_mensaje(db, barberia.id, telefono, "out", reply.text)
 
-    # Si se agendo, registrar/actualizar al cliente con su nombre
+    # Si se agendo, registrar/actualizar al cliente y mandar invitacion de calendario
     if reply.booked_cita_id:
         cita = db.get(Cita, reply.booked_cita_id)
         if cita:
             registrar_cliente(db, barberia.id, telefono, cita.cliente_nombre)
+            if send:
+                try:
+                    link = f"{settings.PUBLIC_BASE_URL}/ics/{cita.id}"
+                    whatsapp.send_document(telefono, link, "cita.ics",
+                                           "📅 Agrega tu cita al calendario",
+                                           barberia.whatsapp_phone_id)
+                except Exception as e:
+                    print("[ics] no se pudo enviar:", e)
 
     if reply.text and send:
         if reply.opciones:

@@ -7,6 +7,7 @@ from .database import init_db, get_db, engine
 from .models import Barberia, Cita, Barbero
 from .service import handle_incoming
 from .panel import router as panel_router
+from .calendar_ics import ics_de_cita
 
 app = FastAPI(title="Barber Bot SaaS", version="0.1.0")
 app.include_router(panel_router)
@@ -15,6 +16,20 @@ app.include_router(panel_router)
 @app.on_event("startup")
 def _startup():
     init_db()
+
+
+@app.get("/ics/{cita_id}")
+def cita_ics(cita_id: int, db: Session = Depends(get_db)):
+    """Devuelve el archivo .ics de una cita para agregarla al calendario."""
+    cita = db.get(Cita, cita_id)
+    if not cita:
+        return Response(content="no encontrada", status_code=404)
+    barberia = db.get(Barberia, cita.barberia_id)
+    barbero = db.get(Barbero, cita.barbero_id)
+    ics = ics_de_cita(cita, barberia.nombre if barberia else "AgendaAI",
+                      barbero.nombre if barbero else "")
+    return Response(content=ics, media_type="text/calendar",
+                    headers={"Content-Disposition": f'attachment; filename="cita-{cita_id}.ics"'})
 
 
 @app.get("/health")

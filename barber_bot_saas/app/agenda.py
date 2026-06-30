@@ -39,8 +39,6 @@ class AgendaService:
         if dia.weekday() in barbero.dias_libres():
             return []
 
-        apertura = datetime.combine(dia, _hhmm(barbero.work_start))
-        cierre = datetime.combine(dia, _hhmm(barbero.work_end))
         dur = timedelta(minutes=duracion_min)
 
         existentes = (
@@ -55,14 +53,18 @@ class AgendaService:
         )
 
         slots = []
-        cur = apertura
-        while cur + dur <= cierre:
-            slot_end = cur + dur
-            if cur > ahora and not any(
-                _overlaps(cur, slot_end, c.inicio, c.fin) for c in existentes
-            ):
-                slots.append(cur)
-            cur += dur
+        # Recorre cada bloque del horario (soporta horarios partidos: 10-14 y 16-20)
+        for ini, fin in barbero.rangos():
+            cur = datetime.combine(dia, _hhmm(ini))
+            cierre = datetime.combine(dia, _hhmm(fin))
+            while cur + dur <= cierre:
+                slot_end = cur + dur
+                if cur > ahora and not any(
+                    _overlaps(cur, slot_end, c.inicio, c.fin) for c in existentes
+                ):
+                    slots.append(cur)
+                cur += dur
+        slots.sort()
         return slots
 
     def book(self, barbero: Barbero, inicio: datetime, duracion_min: int,

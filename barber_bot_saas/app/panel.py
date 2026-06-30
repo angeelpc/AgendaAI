@@ -244,7 +244,8 @@ def barberos(b: Barberia = Depends(current_barberia), db: Session = Depends(get_
             .order_by(Barbero.numero).all())
     return [
         {"id": r.id, "numero": r.numero, "nombre": r.nombre,
-         "work_start": r.work_start, "work_end": r.work_end, "days_off": r.days_off}
+         "work_start": r.work_start, "work_end": r.work_end, "days_off": r.days_off,
+         "bloques": r.bloques or ""}
         for r in rows
     ]
 
@@ -254,6 +255,7 @@ class BarberoIn(BaseModel):
     work_start: str | None = None
     work_end: str | None = None
     days_off: str | None = None
+    bloques: str | None = None
 
 
 @router.put("/api/barberos/{barbero_id}")

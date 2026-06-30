@@ -47,9 +47,24 @@ class Barbero(Base):
     barberia_id = Column(Integer, ForeignKey("barberias.id"))
     numero = Column(Integer)            # 1..4
     nombre = Column(String, nullable=False)
-    work_start = Column(String, default="10:00")   # "HH:MM"
+    work_start = Column(String, default="10:00")   # "HH:MM" (bloque simple)
     work_end = Column(String, default="20:00")
+    # Horarios partidos: "10:00-14:00,16:00-20:00". Vacio = usa work_start/work_end.
+    bloques = Column(String, default="")
     days_off = Column(String, default="0")          # weekday ints csv (0=lunes)
+
+    def rangos(self):
+        """Lista de (inicio, fin) en 'HH:MM'. Soporta horarios partidos."""
+        if self.bloques and self.bloques.strip():
+            out = []
+            for parte in self.bloques.split(","):
+                parte = parte.strip()
+                if "-" in parte:
+                    a, b = parte.split("-", 1)
+                    out.append((a.strip(), b.strip()))
+            if out:
+                return out
+        return [(self.work_start, self.work_end)]
 
     barberia = relationship("Barberia", back_populates="barberos")
 

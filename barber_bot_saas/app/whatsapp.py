@@ -41,6 +41,15 @@ def send_buttons(to: str, body: str, opciones: list, phone_number_id: str | None
     return _enviar(to, payload, phone_number_id, "botones")
 
 
+def send_document(to: str, link: str, filename: str, caption: str | None = None,
+                  phone_number_id: str | None = None) -> dict:
+    """Envia un documento por su URL publica (ej. un .ics de calendario)."""
+    doc = {"link": link, "filename": filename}
+    if caption:
+        doc["caption"] = caption
+    return _enviar(to, {"type": "document", "document": doc}, phone_number_id, "documento")
+
+
 def send_list(to: str, body: str, boton: str, opciones: list,
               phone_number_id: str | None = None) -> dict:
     """Mensaje de lista (hasta 10 filas). opciones: [{'id','title'}]."""
