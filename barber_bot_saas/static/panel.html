@@ -196,6 +196,8 @@
       <div class="stat">
         <div class="l" style="margin-bottom:8px">Mensajes personalizados (vacío = usa el predeterminado)</div>
         <label>Saludo</label><input id="m-saludo">
+        <label>Pregunta por el día</label><input id="m-pedir_dia" placeholder="¿Para qué día te gustaría? (hoy, mañana, sábado, etc.)">
+        <label>Pregunta por el nombre</label><input id="m-pedir_nombre" placeholder="¡Perfecto! ¿Me confirmas tu nombre? 🙂">
         <label>Escalación a humano</label><input id="m-escalacion">
         <label>Recordatorio <small style="color:var(--muted)">variables: {nombre} {dia} {hora} {recurso} {negocio} {emoji}</small></label>
         <input id="m-recordatorio">
@@ -416,6 +418,8 @@ async function loadConfig(){
   document.getElementById("c-admin").value=c.admin_phone||"";
   const m=c.mensajes||{};
   document.getElementById("m-saludo").value=m.saludo||"";
+  document.getElementById("m-pedir_dia").value=m.pedir_dia||"";
+  document.getElementById("m-pedir_nombre").value=m.pedir_nombre||"";
   document.getElementById("m-escalacion").value=m.escalacion||"";
   document.getElementById("m-recordatorio").value=m.recordatorio||"";
   document.getElementById("m-cancelada").value=m.cancelada||"";
@@ -428,7 +432,8 @@ async function saveConfig(){
     termino_negocio:val("c-negocio"), emoji:val("c-emoji"),
     logo_url:val("c-logo"), zona_horaria:val("c-tz"),
     whatsapp_phone_id:val("c-waid"), admin_phone:val("c-admin"),
-    mensajes:{saludo:val("m-saludo"), escalacion:val("m-escalacion"),
+    mensajes:{saludo:val("m-saludo"), pedir_dia:val("m-pedir_dia"),
+      pedir_nombre:val("m-pedir_nombre"), escalacion:val("m-escalacion"),
       recordatorio:val("m-recordatorio"), cancelada:val("m-cancelada")}
   };
   await api("/api/config",{method:"PUT",body:JSON.stringify(body)});
