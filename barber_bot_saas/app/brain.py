@@ -459,10 +459,12 @@ class GeminiBrain:
                                   parts=[types.Part(text=h["text"])]) for h in hist]
         contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
 
+        from .metrics import registrar_llamada_ia
         escalate = False
         booked = None
         texto = ""
         for _ in range(6):
+            registrar_llamada_ia(db)  # contar cada llamada para el informe de uso
             resp = client.models.generate_content(
                 model=settings.GEMINI_MODEL, contents=contents, config=config)
             fcalls = getattr(resp, "function_calls", None) or []

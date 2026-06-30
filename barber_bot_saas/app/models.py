@@ -129,3 +129,10 @@ class Mensaje(Base):
     direccion = Column(String)        # "in" (cliente) | "out" (bot/negocio)
     texto = Column(Text)
     creado = Column(DateTime, default=datetime.utcnow)
+
+
+class MetricaIA(Base):
+    """Contador global de llamadas al cerebro IA por día (para el informe de uso)."""
+    __tablename__ = "metricas_ia"
+    fecha = Column(String, primary_key=True)   # "YYYY-MM-DD"
+    llamadas = Column(Integer, default=0)

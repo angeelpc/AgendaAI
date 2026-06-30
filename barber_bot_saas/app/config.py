@@ -27,6 +27,14 @@ class Settings:
     # Permite intercalar sin tener que borrar claves.
     IA_PROVIDER = os.getenv("IA_PROVIDER", "")
 
+    # --- Informe diario por correo (SMTP) ---
+    SMTP_HOST = os.getenv("SMTP_HOST", "")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASS = os.getenv("SMTP_PASS", "")
+    REPORT_FROM = os.getenv("REPORT_FROM", "")     # remitente; si vacío usa SMTP_USER
+    REPORT_TO = os.getenv("REPORT_TO", "")         # destinatario del informe
+
     # Base de datos
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///barber_bot.db")
 
