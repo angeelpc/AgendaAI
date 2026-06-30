@@ -34,11 +34,14 @@ def cita_ics(cita_id: int, db: Session = Depends(get_db)):
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
+    from .brain import nombre_cerebro
     backend = engine.url.get_backend_name()   # "sqlite" o "postgresql"
     negocios = db.query(Barberia).count()
+    cerebro = nombre_cerebro()
     return {
         "ok": True,
-        "modo_ia": settings.use_llm,
+        "cerebro": cerebro,                    # gemini | claude | reglas
+        "modo_ia": cerebro != "reglas",
         "db": backend,
         "persistente": backend != "sqlite",   # sqlite en Railway = se borra en cada deploy
         "negocios": negocios,

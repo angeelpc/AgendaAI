@@ -23,6 +23,10 @@ class Settings:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
+    # Selector de cerebro: "gemini" | "anthropic" | "reglas" | "" (auto).
+    # Permite intercalar sin tener que borrar claves.
+    IA_PROVIDER = os.getenv("IA_PROVIDER", "")
+
     # Base de datos
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///barber_bot.db")
 

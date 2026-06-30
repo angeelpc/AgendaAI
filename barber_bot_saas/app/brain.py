@@ -491,8 +491,23 @@ class GeminiBrain:
 
 
 def get_brain():
-    if settings.use_gemini:
+    """Elige el cerebro. IA_PROVIDER manda; si está vacío, usa lo que haya."""
+    prov = (settings.IA_PROVIDER or "").lower()
+    if prov == "reglas":
+        return RuleBrain()
+    if prov == "gemini" and settings.GEMINI_API_KEY:
         return GeminiBrain()
-    if settings.ANTHROPIC_API_KEY:
+    if prov == "anthropic" and settings.ANTHROPIC_API_KEY:
         return LLMBrain()
+    if prov == "":  # auto: lo que esté configurado
+        if settings.GEMINI_API_KEY:
+            return GeminiBrain()
+        if settings.ANTHROPIC_API_KEY:
+            return LLMBrain()
     return RuleBrain()
+
+
+def nombre_cerebro() -> str:
+    b = get_brain()
+    return ("gemini" if isinstance(b, GeminiBrain)
+            else "claude" if isinstance(b, LLMBrain) else "reglas")
