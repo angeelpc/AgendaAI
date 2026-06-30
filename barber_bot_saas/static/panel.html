@@ -135,13 +135,13 @@
             <input id="nb-ws" placeholder="10:00" style="width:90px"></div>
           <div><label style="display:block;font-size:12px;color:var(--muted)">Salida</label>
             <input id="nb-we" placeholder="20:00" style="width:90px"></div>
-          <div><label style="display:block;font-size:12px;color:var(--muted)">Días libres (0=Lun)</label>
-            <input id="nb-do" placeholder="0" style="width:110px"></div>
+          <div><label style="display:block;font-size:12px;color:var(--muted)">Días libres <small>(vacío=todos; luego ajustas)</small></label>
+            <input id="nb-do" placeholder="" style="width:140px"></div>
           <button class="ok sm" onclick="crearBarbero()">+ Agregar profesional</button>
         </div>
         <div id="nb-msg" style="margin-top:8px;font-size:13px;color:var(--danger);min-height:16px"></div>
       </div>
-      <table><thead><tr><th>#</th><th>Nombre</th><th>Entrada</th><th>Salida</th><th>Días libres (0=Lun)</th><th></th></tr></thead>
+      <table><thead><tr><th>#</th><th>Nombre</th><th>Entrada</th><th>Salida</th><th>Días que trabaja</th><th></th></tr></thead>
       <tbody id="tb-barberos"></tbody></table>
     </section>
 
@@ -322,6 +322,18 @@ async function crearCita(){
   loadCitas();
 }
 
+const DIAS_LBL=["L","M","M","J","V","S","D"];
+function checksDias(id, days_off){
+  const off=new Set((days_off||"").split(",").map(x=>x.trim()).filter(x=>x!==""));
+  return `<div id="days-${id}" style="white-space:nowrap">`+
+    DIAS_LBL.map((d,i)=>`<label style="font-size:11px;margin-right:5px"><input type="checkbox" value="${i}" ${off.has(String(i))?"":"checked"}> ${d}</label>`).join("")+
+    `</div>`;
+}
+function diasOff(id){
+  const offs=[];
+  document.querySelectorAll(`#days-${id} input`).forEach(cb=>{ if(!cb.checked) offs.push(cb.value); });
+  return offs.join(",");
+}
 async function loadBarberos(){
   const rows = await api("/api/barberos");
   const tb=document.getElementById("tb-barberos"); tb.innerHTML="";
@@ -329,15 +341,15 @@ async function loadBarberos(){
     const tr=document.createElement("tr");
     tr.innerHTML=`<td>${b.numero}</td>
       <td><input class="name" id="n-${b.id}" value="${b.nombre}"></td>
-      <td><input id="ws-${b.id}" value="${b.work_start}"></td>
-      <td><input id="we-${b.id}" value="${b.work_end}"></td>
-      <td><input id="do-${b.id}" value="${b.days_off}"></td>
+      <td><input id="ws-${b.id}" value="${b.work_start}" style="width:80px"></td>
+      <td><input id="we-${b.id}" value="${b.work_end}" style="width:80px"></td>
+      <td>${checksDias(b.id, b.days_off)}</td>
       <td><button class="sm" onclick="saveBarbero(${b.id})">Guardar</button></td>`;
     tb.appendChild(tr);
   });
 }
 async function saveBarbero(id){
-  const body={nombre:val(`n-${id}`),work_start:val(`ws-${id}`),work_end:val(`we-${id}`),days_off:val(`do-${id}`)};
+  const body={nombre:val(`n-${id}`),work_start:val(`ws-${id}`),work_end:val(`we-${id}`),days_off:diasOff(id)};
   await api(`/api/barberos/${id}`,{method:"PUT",body:JSON.stringify(body)});
   const btn=event.target; btn.textContent="✓"; setTimeout(()=>btn.textContent="Guardar",900);
 }

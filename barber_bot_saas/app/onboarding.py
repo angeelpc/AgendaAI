@@ -52,6 +52,14 @@ PRESETS = {
         "termino_recurso": "terapeuta", "termino_negocio": "el spa", "emoji": "💆",
         "servicios": [{"nombre": "Masaje", "duracion_min": 60, "precio": 700}],
     },
+    "terapeuta": {
+        "termino_recurso": "terapeuta", "termino_negocio": "el consultorio", "emoji": "🧠",
+        "servicios": [{"nombre": "Sesión", "duracion_min": 60, "precio": 600}],
+    },
+    "consultorio": {
+        "termino_recurso": "especialista", "termino_negocio": "el consultorio", "emoji": "🩺",
+        "servicios": [{"nombre": "Consulta", "duracion_min": 30, "precio": 500}],
+    },
     "default": {
         "termino_recurso": "profesional", "termino_negocio": "el negocio", "emoji": "📅",
         "servicios": [{"nombre": "Servicio", "duracion_min": 45, "precio": 0}],
