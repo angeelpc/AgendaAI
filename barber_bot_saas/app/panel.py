@@ -14,8 +14,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from .database import get_db
-from .models import Barberia, Barbero, Cita, Conversacion, Servicio
+from .models import Barberia, Barbero, Cita, Conversacion, Servicio, Cliente, Mensaje
 from .agenda import AgendaService
+from .service import registrar_cliente
 from .reminders import citas_por_recordar, enviar_recordatorios
 from .config import settings
 from .onboarding import crear_negocio, PRESETS
@@ -231,6 +232,7 @@ def crear_cita(data: CitaIn, b: Barberia = Depends(current_barberia),
                        data.cliente_telefono, nombre_serv)
     except ValueError as e:
         raise HTTPException(409, str(e))
+    registrar_cliente(db, b.id, data.cliente_telefono, data.cliente_nombre)
     return {"ok": True, "id": cita.id}
 
 
@@ -418,6 +420,73 @@ def update_config(data: ConfigIn, b: Barberia = Depends(current_barberia),
         # limpia textos vacios para que el bot use sus defaults
         limpio = {k: v for k, v in mensajes.items() if isinstance(v, str) and v.strip()}
         b.config_mensajes = json.dumps(limpio, ensure_ascii=False)
+    db.commit()
+    return {"ok": True}
+
+
+# --------------------------- clientes / pacientes ---------------------------
+
+@router.get("/api/clientes")
+def clientes(b: Barberia = Depends(current_barberia), db: Session = Depends(get_db),
+             q: str = None):
+    rows = (db.query(Cliente).filter(Cliente.barberia_id == b.id)
+            .order_by(Cliente.actualizado.desc()).all())
+    out = []
+    for c in rows:
+        if q:
+            ql = q.lower()
+            if ql not in (c.nombre or "").lower() and ql not in (c.telefono or ""):
+                continue
+        total = (db.query(Cita)
+                 .filter(Cita.barberia_id == b.id, Cita.cliente_telefono == c.telefono)
+                 .count())
+        ultima = (db.query(Cita)
+                  .filter(Cita.barberia_id == b.id, Cita.cliente_telefono == c.telefono)
+                  .order_by(Cita.inicio.desc()).first())
+        out.append({"telefono": c.telefono, "nombre": c.nombre, "notas": c.notas or "",
+                    "citas": total,
+                    "ultima": ultima.inicio.isoformat() if ultima else None})
+    return out
+
+
+@router.get("/api/clientes/{telefono}")
+def cliente_detalle(telefono: str, b: Barberia = Depends(current_barberia),
+                    db: Session = Depends(get_db)):
+    c = (db.query(Cliente)
+         .filter(Cliente.barberia_id == b.id, Cliente.telefono == telefono).first())
+    if not c:
+        raise HTTPException(404, "Cliente no encontrado")
+    barberos = {x.id: x.nombre for x in db.query(Barbero).filter(Barbero.barberia_id == b.id)}
+    citas = (db.query(Cita)
+             .filter(Cita.barberia_id == b.id, Cita.cliente_telefono == telefono)
+             .order_by(Cita.inicio.desc()).all())
+    mensajes = (db.query(Mensaje)
+                .filter(Mensaje.barberia_id == b.id, Mensaje.telefono == telefono)
+                .order_by(Mensaje.creado).all())
+    return {
+        "telefono": c.telefono, "nombre": c.nombre, "notas": c.notas or "",
+        "citas": [{"inicio": x.inicio.isoformat(), "barbero": barberos.get(x.barbero_id, "?"),
+                   "servicio": x.servicio, "estado": x.estado} for x in citas],
+        "mensajes": [{"direccion": m.direccion, "texto": m.texto,
+                      "creado": m.creado.isoformat()} for m in mensajes],
+    }
+
+
+class ClientePatch(BaseModel):
+    nombre: str | None = None
+    notas: str | None = None
+
+
+@router.put("/api/clientes/{telefono}")
+def editar_cliente(telefono: str, data: ClientePatch,
+                   b: Barberia = Depends(current_barberia),
+                   db: Session = Depends(get_db)):
+    c = (db.query(Cliente)
+         .filter(Cliente.barberia_id == b.id, Cliente.telefono == telefono).first())
+    if not c:
+        raise HTTPException(404, "Cliente no encontrado")
+    for campo, valor in data.model_dump(exclude_none=True).items():
+        setattr(c, campo, valor)
     db.commit()
     return {"ok": True}
 

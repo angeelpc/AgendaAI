@@ -9,7 +9,7 @@ os.environ["ANTHROPIC_API_KEY"] = ""  # forzar motor de reglas
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.seed import seed  # noqa: E402
-from app.models import Cita, Conversacion  # noqa: E402
+from app.models import Cita, Conversacion, Cliente, Mensaje  # noqa: E402
 
 
 @pytest.fixture()

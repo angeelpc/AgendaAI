@@ -91,3 +91,26 @@ class Conversacion(Base):
     estado = Column(String, default="bot")        # bot | humano
     contexto = Column(Text, default="{}")          # JSON de slots en progreso
     actualizada = Column(DateTime, default=datetime.utcnow)
+
+
+class Cliente(Base):
+    """Registro de clientes/pacientes por negocio (se guarda al agendar)."""
+    __tablename__ = "clientes"
+    id = Column(Integer, primary_key=True)
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), index=True)
+    telefono = Column(String, index=True)
+    nombre = Column(String)
+    notas = Column(Text, default="")
+    creado = Column(DateTime, default=datetime.utcnow)
+    actualizado = Column(DateTime, default=datetime.utcnow)
+
+
+class Mensaje(Base):
+    """Historial de mensajes (entrantes y del bot) para poder leer la conversacion."""
+    __tablename__ = "mensajes"
+    id = Column(Integer, primary_key=True)
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), index=True)
+    telefono = Column(String, index=True)
+    direccion = Column(String)        # "in" (cliente) | "out" (bot/negocio)
+    texto = Column(Text)
+    creado = Column(DateTime, default=datetime.utcnow)

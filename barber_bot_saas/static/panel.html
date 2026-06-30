@@ -74,6 +74,7 @@
     <button data-tab="servicios" onclick="tab('servicios')">Servicios</button>
     <button data-tab="barberos" onclick="tab('barberos')">Barberos</button>
     <button data-tab="chats" onclick="tab('chats')">Chats escalados</button>
+    <button data-tab="clientes" onclick="tab('clientes')">Clientes</button>
     <button data-tab="plan" onclick="tab('plan')">Plan</button>
     <button data-tab="config" onclick="tab('config')">Configuración</button>
   </nav>
@@ -149,6 +150,37 @@
       <table><thead><tr><th>Teléfono</th><th>Estado</th><th>Actualizado</th><th></th></tr></thead>
       <tbody id="tb-chats"></tbody></table>
       <div class="empty hidden" id="chats-empty">Ningún chat necesita atención humana. 🎉</div>
+    </section>
+
+    <section id="tab-clientes" class="hidden">
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <input id="cli-q" placeholder="Buscar por nombre o teléfono" oninput="loadClientes()" style="max-width:320px">
+      </div>
+      <table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Citas</th><th>Última</th><th></th></tr></thead>
+      <tbody id="tb-clientes"></tbody></table>
+      <div class="empty hidden" id="clientes-empty">Aún no hay clientes registrados.</div>
+
+      <div id="cli-detalle" class="hidden" style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><b id="cd-nombre"></b> <span style="color:var(--muted)" id="cd-tel"></span></div>
+          <button class="ghost sm" onclick="cerrarCliente()">Cerrar</button>
+        </div>
+        <label style="display:block;font-size:12px;color:var(--muted);margin-top:10px">Notas</label>
+        <div style="display:flex;gap:8px">
+          <input id="cd-notas" placeholder="Notas internas del cliente">
+          <button class="ok sm" onclick="saveNotas()">Guardar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+          <div>
+            <div class="l" style="margin-bottom:6px">Citas</div>
+            <div id="cd-citas" style="font-size:13px"></div>
+          </div>
+          <div>
+            <div class="l" style="margin-bottom:6px">Conversación</div>
+            <div id="cd-chat" style="font-size:13px;max-height:320px;overflow:auto"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="tab-plan" class="hidden">
@@ -246,13 +278,14 @@ function enterApp(){
 
 function tab(name){
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
-  ["dash","citas","servicios","barberos","chats","plan","config"].forEach(t=>
+  ["dash","citas","servicios","barberos","chats","clientes","plan","config"].forEach(t=>
     document.getElementById("tab-"+t).classList.toggle("hidden", t!==name));
   if(name==="dash") loadDash();
   if(name==="citas") loadCitas();
   if(name==="servicios") loadServicios();
   if(name==="barberos") loadBarberos();
   if(name==="chats") loadChats();
+  if(name==="clientes") loadClientes();
   if(name==="plan") loadPlan();
   if(name==="config") loadConfig();
 }
@@ -380,6 +413,47 @@ async function loadChats(){
   });
 }
 async function devolver(id){await api(`/api/conversaciones/${id}/devolver_bot`,{method:"POST"});loadChats();}
+
+// --- clientes / pacientes ---
+let cliActual=null;
+async function loadClientes(){
+  const q=document.getElementById("cli-q").value.trim();
+  const rows=await api("/api/clientes"+(q?`?q=${encodeURIComponent(q)}`:""));
+  const tb=document.getElementById("tb-clientes"); tb.innerHTML="";
+  document.getElementById("clientes-empty").classList.toggle("hidden", rows.length>0);
+  rows.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${c.nombre||"—"}</td><td>${c.telefono}</td><td>${c.citas}</td>
+      <td>${c.ultima?fmt(c.ultima):"—"}</td>
+      <td><button class="sm" onclick="verCliente('${c.telefono}')">Ver</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+async function verCliente(tel){
+  const d=await api(`/api/clientes/${encodeURIComponent(tel)}`);
+  cliActual=tel;
+  document.getElementById("cli-detalle").classList.remove("hidden");
+  document.getElementById("cd-nombre").textContent=d.nombre||"—";
+  document.getElementById("cd-tel").textContent=d.telefono;
+  document.getElementById("cd-notas").value=d.notas||"";
+  document.getElementById("cd-citas").innerHTML = d.citas.length
+    ? d.citas.map(c=>`<div style="padding:4px 0;border-bottom:1px solid var(--line)">${fmt(c.inicio)} · ${c.barbero} · ${c.servicio||""} <span class="pill">${c.estado}</span></div>`).join("")
+    : '<span style="color:var(--muted)">Sin citas</span>';
+  document.getElementById("cd-chat").innerHTML = d.mensajes.length
+    ? d.mensajes.map(m=>{
+        const mine=m.direccion==="out";
+        return `<div style="text-align:${mine?'right':'left'};margin:4px 0">
+          <span style="display:inline-block;padding:6px 9px;border-radius:8px;background:${mine?'#243':'#1f2430'};color:var(--txt);max-width:85%">${(m.texto||"").replace(/</g,"&lt;")}</span></div>`;
+      }).join("")
+    : '<span style="color:var(--muted)">Sin mensajes</span>';
+}
+function cerrarCliente(){document.getElementById("cli-detalle").classList.add("hidden");cliActual=null;}
+async function saveNotas(){
+  if(!cliActual) return;
+  await api(`/api/clientes/${encodeURIComponent(cliActual)}`,{method:"PUT",
+    body:JSON.stringify({notas:document.getElementById("cd-notas").value})});
+  const e=event.target; e.textContent="✓"; setTimeout(()=>e.textContent="Guardar",900);
+}
 
 // --- plan / suscripción ---
 const ESTADO_LABEL={prueba:"En prueba",activa:"Activa ✅",vencida:"Vencida ⚠️",cancelada:"Cancelada"};
