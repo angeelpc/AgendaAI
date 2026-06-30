@@ -23,6 +23,7 @@ class Reply:
     text: str
     escalate: bool = False
     booked_cita_id: int | None = None
+    opciones: list | None = None   # [{"id","title"}] -> botones (<=3) o lista (>3)
     meta: dict = field(default_factory=dict)
 
 
@@ -115,6 +116,16 @@ class RuleBrain:
             return self._do_booking(db, agenda, barberia, conv, ctx, barberos, dur,
                                     servicio.nombre if servicio else "Corte")
 
+        # 5b) Si en la confirmacion dice "no", volver a elegir horario
+        if ctx.get("stage") == "need_confirm" and nlu.norm(message) in {"no"}:
+            ctx.pop("inicio", None)
+            slots = self._slots(agenda, ctx, barberos, dur, ahora)
+            if slots:
+                return self._offer(conv, ctx, slots, barberos)
+            ctx.pop("fecha", None)
+            ctx["stage"] = "need_day"
+            return self._save(conv, ctx, Reply(text=self.t.pedir_dia()))
+
         # 6) Hora elegida
         hora = nlu.parse_hora(message)
         if hora and ctx.get("barbero_numero") and ctx.get("fecha"):
@@ -132,8 +143,10 @@ class RuleBrain:
         # 7) Pedir lo que falta
         if not ctx.get("barbero_numero"):
             ctx["stage"] = "need_barbero"
-            listado = "  ".join(f"{b.numero}) {b.nombre}" for b in sorted(barberos, key=lambda x: x.numero))
-            return self._save(conv, ctx, Reply(text=self.t.pedir_recurso(listado)))
+            ordenados = sorted(barberos, key=lambda x: x.numero)
+            listado = "  ".join(f"{b.numero}) {b.nombre}" for b in ordenados)
+            ops = [{"id": str(b.numero), "title": f"{b.numero}. {b.nombre}"} for b in ordenados]
+            return self._save(conv, ctx, Reply(text=self.t.pedir_recurso(listado), opciones=ops))
 
         if not ctx.get("fecha"):
             ctx["stage"] = "need_day"
@@ -171,16 +184,20 @@ class RuleBrain:
         b = self._barbero(barberos, ctx["barbero_numero"])
         muestra = slots[:3]
         horas = ", ".join(_fmt_hora(s) for s in muestra)
+        ops = [{"id": _fmt_hora(s), "title": _fmt_hora(s)} for s in muestra]
         return self._save(conv, ctx, Reply(
-            text=self.t.ofrecer(b.nombre, _fmt_fecha(slots[0].date()), horas)))
+            text=self.t.ofrecer(b.nombre, _fmt_fecha(slots[0].date()), horas),
+            opciones=ops))
 
     def _confirm_step(self, ctx, conv, nombres, barberos):
         ctx["stage"] = "need_confirm"
         b = self._barbero(barberos, ctx["barbero_numero"])
         inicio = datetime.fromisoformat(ctx["inicio"])
+        ops = [{"id": "si", "title": "Sí, agendar"}, {"id": "no", "title": "No"}]
         return self._save(conv, ctx, Reply(
             text=self.t.confirmar(ctx["cliente_nombre"], b.nombre,
-                                  _fmt_fecha(inicio.date()), _fmt_hora(inicio))))
+                                  _fmt_fecha(inicio.date()), _fmt_hora(inicio)),
+            opciones=ops))
 
     def _do_booking(self, db, agenda, barberia, conv, ctx, barberos, dur, servicio_nombre):
         b = self._barbero(barberos, ctx["barbero_numero"])

@@ -77,7 +77,15 @@ def handle_incoming(db, barberia: Barberia, telefono: str, message: str,
             registrar_cliente(db, barberia.id, telefono, cita.cliente_nombre)
 
     if reply.text and send:
-        whatsapp.send_text(telefono, reply.text, barberia.whatsapp_phone_id)
+        if reply.opciones:
+            if len(reply.opciones) <= 3:
+                whatsapp.send_buttons(telefono, reply.text, reply.opciones,
+                                      barberia.whatsapp_phone_id)
+            else:
+                whatsapp.send_list(telefono, reply.text, "Ver opciones",
+                                   reply.opciones, barberia.whatsapp_phone_id)
+        else:
+            whatsapp.send_text(telefono, reply.text, barberia.whatsapp_phone_id)
 
     # Notificar al admin si se escalo
     if reply.escalate and barberia.admin_phone and send:

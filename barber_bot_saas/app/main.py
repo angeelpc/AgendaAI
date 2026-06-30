@@ -63,10 +63,20 @@ async def incoming(request: Request, db: Session = Depends(get_db)):
                 print(f"[webhook] match negocio id={barberia.id} '{barberia.nombre}' "
                       f"para phone_id={phone_id}")
                 for msg in value.get("messages", []):
-                    if msg.get("type") != "text":
+                    tipo = msg.get("type")
+                    if tipo == "text":
+                        texto = msg["text"]["body"]
+                    elif tipo == "interactive":
+                        inter = msg.get("interactive", {})
+                        if inter.get("type") == "button_reply":
+                            texto = inter["button_reply"]["id"]
+                        elif inter.get("type") == "list_reply":
+                            texto = inter["list_reply"]["id"]
+                        else:
+                            continue
+                    else:
                         continue
                     telefono = msg["from"]
-                    texto = msg["text"]["body"]
                     reply = handle_incoming(db, barberia, telefono, texto)
                     print(f"[webhook] respuesta='{(reply.text or '')[:60]}' "
                           f"escalado={reply.escalate}")
