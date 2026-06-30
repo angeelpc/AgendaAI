@@ -16,6 +16,9 @@ app.include_router(panel_router)
 @app.on_event("startup")
 def _startup():
     init_db()
+    if settings.SCHEDULER_ENABLED:
+        from .scheduler import start_scheduler
+        start_scheduler()
 
 
 @app.get("/ics/{cita_id}")

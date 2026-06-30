@@ -6,6 +6,7 @@ import pytest
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
 os.environ["ANTHROPIC_API_KEY"] = ""  # forzar motor de reglas
+os.environ["SCHEDULER_ENABLED"] = "0"  # no arrancar el cron durante pruebas
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.seed import seed  # noqa: E402

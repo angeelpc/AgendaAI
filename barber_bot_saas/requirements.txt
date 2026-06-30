@@ -7,6 +7,8 @@ python-dotenv>=1.0
 pytest>=8.0
 # PostgreSQL (produccion en la nube). En local con SQLite no se usa.
 psycopg2-binary>=2.9
+# Programador interno (recordatorios + informe diario)
+apscheduler>=3.10
 # Opcional: cerebro con IA (elige uno)
 anthropic>=0.34            # Claude (Anthropic)
 google-genai>=0.3          # Gemini (Google) — tiene capa gratuita

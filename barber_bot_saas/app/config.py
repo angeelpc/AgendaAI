@@ -35,6 +35,12 @@ class Settings:
     REPORT_FROM = os.getenv("REPORT_FROM", "")     # remitente; si vacío usa SMTP_USER
     REPORT_TO = os.getenv("REPORT_TO", "")         # destinatario del informe
 
+    # --- Programador interno (cron) ---
+    SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "1") not in ("0", "false", "False", "")
+    SCHED_TZ = os.getenv("SCHED_TZ", "America/Mexico_City")
+    REMINDERS_HOUR = int(os.getenv("REMINDERS_HOUR", "9"))   # hora de recordatorios
+    REPORT_HOUR = int(os.getenv("REPORT_HOUR", "8"))         # hora del informe
+
     # Base de datos
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///barber_bot.db")
 
