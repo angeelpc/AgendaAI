@@ -242,6 +242,58 @@ class RuleBrain:
         return reply
 
 
+# ----------------------------- persona del cerebro con IA -----------------------------
+
+GIROS_CLINICOS = {"dentista", "consultorio", "terapeuta", "veterinaria"}
+
+
+def _persona_prompt(barberia, barberos, servicio, dur, ahora, t) -> str:
+    """System prompt del cerebro IA. Adapta la persona segun el giro:
+    para consultorios/clinicas actua como recepcionista medica experimentada."""
+    recurso = t.recurso
+    clinico = (barberia.giro or "").lower() in GIROS_CLINICOS
+    quien = "paciente" if clinico else "cliente"
+
+    listado = "; ".join(
+        f"{b.numero}={b.nombre} (atiende {_dias_que_atiende(b)})"
+        for b in sorted(barberos, key=lambda x: x.numero)
+    )
+    serv = f"{servicio.nombre} ({dur} min)" if servicio else f"servicio ({dur} min)"
+
+    base = (
+        f"Eres la recepcionista virtual de {barberia.nombre} ({t.negocio}). "
+        f"Atiendes por WhatsApp a cada {quien} de forma breve, cálida y profesional. "
+        f"Hoy es {ahora.date().isoformat()}.\n"
+        f"{recurso.capitalize()}s disponibles: {listado}.\n"
+        f"Servicio base: {serv}.\n\n"
+        "REGLAS FIJAS:\n"
+        "- Solo ofreces horarios que devuelva consultar_disponibilidad. NUNCA inventes "
+        "horarios, precios ni información.\n"
+        "- Para agendar pide el nombre. Ofrece solo días en que el recurso atiende.\n"
+        "- Reagendar = cancelar_cita y luego agendar la nueva. Cancelar = cancelar_cita.\n"
+        "- Si piden algo fuera de agendar/cancelar/consultar (precios no listados, "
+        "cobertura/seguros, quejas, pagos), usa escalar_a_humano; no inventes.\n"
+        "- Responde corto, como en un chat. Emojis con mesura.\n"
+    )
+
+    if clinico:
+        base += (
+            "\nCOMO RECEPCIONISTA DE CONSULTORIO, además maneja estas situaciones:\n"
+            "- Primera vez vs. seguimiento: pregunta si es su primera consulta; si lo es, "
+            "pídele llegar 10 min antes y traer identificación y estudios o recetas previas "
+            "si tiene.\n"
+            "- Motivo de la consulta: puedes pedir un motivo BREVE para estimar el tiempo, "
+            "sin solicitar detalles médicos sensibles por WhatsApp.\n"
+            "- Llegadas tarde: sé comprensiva; si el retraso es grande, ofrece reagendar.\n"
+            "- Cancelaciones/no-shows: pide avisar con anticipación.\n"
+            "- Urgencias o emergencias: si suena urgente, usa escalar_a_humano de inmediato; "
+            "si parece poner en riesgo la vida, indícale llamar a emergencias (911).\n"
+            "- NUNCA des diagnósticos ni consejos médicos: eso lo ve el profesional.\n"
+            "- Privacidad: pide solo lo necesario (nombre); no pidas datos clínicos por chat.\n"
+        )
+    return base
+
+
 # ----------------------------- cerebro con IA (opcional) -----------------------------
 
 class LLMBrain:
@@ -276,8 +328,13 @@ class LLMBrain:
             },
         },
         {
+            "name": "cancelar_cita",
+            "description": "Cancela la cita activa mas reciente del cliente. Usalo para cancelar o como primer paso para reagendar (cancelar y luego agendar la nueva).",
+            "input_schema": {"type": "object", "properties": {}, "required": []},
+        },
+        {
             "name": "escalar_a_humano",
-            "description": "Pasa la conversacion a una persona cuando el cliente pide algo fuera de agendar (quejas, pagos, reembolsos, casos confusos).",
+            "description": "Pasa la conversacion a una persona cuando el cliente pide algo fuera de agendar/cancelar (quejas, pagos, reembolsos, dudas de cobertura/seguros, urgencias medicas, casos confusos).",
             "input_schema": {
                 "type": "object",
                 "properties": {"motivo": {"type": "string"}},
@@ -312,6 +369,15 @@ class LLMBrain:
                     return {"ok": True, "cita_id": cita.id}
                 except ValueError as e:
                     return {"ok": False, "error": str(e)}
+            if name == "cancelar_cita":
+                ult = (db.query(Cita)
+                       .filter(Cita.cliente_telefono == conv.telefono,
+                               Cita.estado == "agendada")
+                       .order_by(Cita.inicio.desc()).first())
+                if ult:
+                    agenda.cancel(ult.id)
+                    return {"ok": True}
+                return {"ok": False, "error": "sin cita activa"}
             if name == "escalar_a_humano":
                 conv.estado = "humano"
                 return {"escalado": True}
@@ -320,15 +386,7 @@ class LLMBrain:
         t = Textos(barberia)
         recurso = t.recurso
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        sys = (
-            f"Eres el asistente de WhatsApp de {barberia.nombre}. Agendas citas con "
-            f"{'estos ' + recurso + 's' if not recurso.endswith('s') else 'estos ' + recurso}: "
-            + ", ".join(f"{b.numero}={b.nombre}" for b in barberos) + ". "
-            f"Hoy es {ahora.date().isoformat()}. Servicio: {servicio.nombre if servicio else 'Corte'} "
-            f"({dur} min). Solo ofreces horarios que devuelva consultar_disponibilidad; "
-            "nunca inventes horarios ni precios. Eres breve y amable. Si el cliente pide "
-            "algo fuera de agendar/consultar/cancelar, usa escalar_a_humano."
-        )
+        sys = _persona_prompt(barberia, barberos, servicio, dur, ahora, t)
         history = json.loads(conv.contexto or "[]")
         if not isinstance(history, list):
             history = []
