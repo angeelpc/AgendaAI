@@ -395,6 +395,7 @@ def get_config(b: Barberia = Depends(current_barberia)):
         "zona_horaria": b.zona_horaria,
         "whatsapp_phone_id": b.whatsapp_phone_id or "",
         "admin_phone": b.admin_phone or "",
+        "instrucciones_ia": b.instrucciones_ia or "",
         "mensajes": mensajes,
     }
 
@@ -403,6 +404,7 @@ class ConfigIn(BaseModel):
     nombre: str | None = None
     whatsapp_phone_id: str | None = None
     admin_phone: str | None = None
+    instrucciones_ia: str | None = None
     termino_recurso: str | None = None
     termino_negocio: str | None = None
     emoji: str | None = None

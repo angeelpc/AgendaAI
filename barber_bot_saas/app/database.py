@@ -56,6 +56,7 @@ def _migrate():
             ("mp_preapproval_id", "VARCHAR DEFAULT ''"),
             ("recordatorios_mes_ref", "VARCHAR DEFAULT ''"),
             ("recordatorios_mes_count", "INTEGER DEFAULT 0"),
+            ("instrucciones_ia", "TEXT DEFAULT ''"),
         ],
     }
     insp = inspect(engine)

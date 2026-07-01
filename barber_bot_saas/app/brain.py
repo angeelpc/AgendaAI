@@ -291,6 +291,12 @@ def _persona_prompt(barberia, barberos, servicio, dur, ahora, t) -> str:
             "- NUNCA des diagnósticos ni consejos médicos: eso lo ve el profesional.\n"
             "- Privacidad: pide solo lo necesario (nombre); no pidas datos clínicos por chat.\n"
         )
+
+    # Instrucciones que el negocio escribe desde el panel (respetarlas siempre)
+    extra = (getattr(barberia, "instrucciones_ia", "") or "").strip()
+    if extra:
+        base += ("\nINSTRUCCIONES DEL NEGOCIO (síguelas siempre, sin romper las reglas "
+                 "fijas de arriba):\n" + extra + "\n")
     return base
 
 

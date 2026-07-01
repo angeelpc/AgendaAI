@@ -29,6 +29,7 @@ class Barberia(Base):
     termino_negocio = Column(String, default="la barbería")
     emoji = Column(String, default="💈")
     config_mensajes = Column(Text, default="{}")       # overrides de textos (JSON)
+    instrucciones_ia = Column(Text, default="")        # indicaciones extra para el cerebro IA
 
     # --- Suscripcion (Fase 3) ---
     estado_suscripcion = Column(String, default="prueba")   # prueba | activa | vencida | cancelada

@@ -226,6 +226,12 @@
         <div id="logo-preview" style="margin-top:10px"></div>
       </div>
 
+      <div class="stat" style="margin-bottom:14px">
+        <div class="l" style="margin-bottom:8px">Instrucciones para la IA <small style="color:var(--muted)">(solo aplica con cerebro IA)</small></div>
+        <div style="color:var(--muted);font-size:12px;margin-bottom:8px">Escribe reglas o indicaciones en lenguaje normal. Ej.: "Pregunta siempre el motivo de la consulta antes de agendar." · "Ofrece primero horarios de la mañana." · "Si piden cita el mismo día, avisa que se confirma por teléfono."</div>
+        <textarea id="c-instr" rows="5" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0e1117;color:var(--txt);font-size:14px;font-family:inherit" placeholder="Una instrucción por línea…"></textarea>
+      </div>
+
       <div class="stat">
         <div class="l" style="margin-bottom:8px">Mensajes personalizados (vacío = usa el predeterminado)</div>
         <label>Saludo</label><input id="m-saludo">
@@ -505,6 +511,7 @@ async function loadConfig(){
   document.getElementById("c-tz").value=c.zona_horaria||"";
   document.getElementById("c-waid").value=c.whatsapp_phone_id||"";
   document.getElementById("c-admin").value=c.admin_phone||"";
+  document.getElementById("c-instr").value=c.instrucciones_ia||"";
   const m=c.mensajes||{};
   document.getElementById("m-saludo").value=m.saludo||"";
   document.getElementById("m-pedir_dia").value=m.pedir_dia||"";
@@ -521,6 +528,7 @@ async function saveConfig(){
     termino_negocio:val("c-negocio"), emoji:val("c-emoji"),
     logo_url:val("c-logo"), zona_horaria:val("c-tz"),
     whatsapp_phone_id:val("c-waid"), admin_phone:val("c-admin"),
+    instrucciones_ia:val("c-instr"),
     mensajes:{saludo:val("m-saludo"), pedir_dia:val("m-pedir_dia"),
       pedir_nombre:val("m-pedir_nombre"), escalacion:val("m-escalacion"),
       recordatorio:val("m-recordatorio"), cancelada:val("m-cancelada")}
